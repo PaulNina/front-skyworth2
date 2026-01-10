@@ -14,6 +14,12 @@ import { Users, Eye, Search, CheckCircle, Trophy, Store } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+type Profile = {
+  full_name: string;
+  email: string;
+  phone: string | null;
+};
+
 type Seller = {
   id: string;
   user_id: string;
@@ -25,11 +31,7 @@ type Seller = {
   is_active: boolean | null;
   is_verified: boolean | null;
   created_at: string;
-  profiles?: {
-    full_name: string;
-    email: string;
-    phone: string | null;
-  } | null;
+  profile?: Profile | null;
 };
 
 const STATUS_OPTIONS = [
@@ -50,7 +52,7 @@ export default function AdminSellers() {
     queryFn: async () => {
       let query = supabase
         .from('sellers')
-        .select('*, profiles!sellers_user_id_fkey(full_name, email, phone)')
+        .select('*')
         .order('total_points', { ascending: false });
 
       if (statusFilter === 'active') {
@@ -65,9 +67,23 @@ export default function AdminSellers() {
         query = query.or(`store_name.ilike.%${searchTerm}%,store_city.ilike.%${searchTerm}%`);
       }
 
-      const { data, error } = await query.limit(100);
+      const { data: sellersData, error } = await query.limit(100);
       if (error) throw error;
-      return data as Seller[];
+
+      // Fetch profiles separately for each seller
+      const userIds = sellersData?.map(s => s.user_id) || [];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email, phone')
+        .in('user_id', userIds);
+
+      // Map profiles to sellers
+      const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
+      
+      return (sellersData || []).map(seller => ({
+        ...seller,
+        profile: profilesMap.get(seller.user_id) || null
+      })) as Seller[];
     }
   });
 
@@ -184,8 +200,8 @@ export default function AdminSellers() {
                   <TableRow key={seller.id} className="border-border">
                     <TableCell className="text-foreground">
                       <div>
-                        <p className="font-medium">{seller.profiles?.full_name || 'Sin nombre'}</p>
-                        <p className="text-muted-foreground text-xs">{seller.profiles?.email}</p>
+                        <p className="font-medium">{seller.profile?.full_name || 'Sin nombre'}</p>
+                        <p className="text-muted-foreground text-xs">{seller.profile?.email}</p>
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground font-medium">
@@ -253,15 +269,15 @@ export default function AdminSellers() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-muted-foreground text-sm">Nombre</p>
-                  <p className="text-foreground font-medium">{selectedSeller.profiles?.full_name}</p>
+                  <p className="text-foreground font-medium">{selectedSeller.profile?.full_name}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm">Email</p>
-                  <p className="text-foreground font-medium">{selectedSeller.profiles?.email}</p>
+                  <p className="text-foreground font-medium">{selectedSeller.profile?.email}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm">Teléfono</p>
-                  <p className="text-foreground font-medium">{selectedSeller.profiles?.phone || '-'}</p>
+                  <p className="text-foreground font-medium">{selectedSeller.profile?.phone || '-'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm">Tienda</p>

@@ -8,7 +8,7 @@ import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function AdminDashboard() {
-  const { campaign } = useCampaign();
+  const { data: campaign } = useCampaign();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['admin-dashboard-stats'],
