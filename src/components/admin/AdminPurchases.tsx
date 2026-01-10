@@ -58,7 +58,7 @@ export default function AdminPurchases() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
+    mutationFn: async ({ id, status, notes, assignTickets = false }: { id: string; status: string; notes?: string; assignTickets?: boolean }) => {
       const { error } = await supabase
         .from('client_purchases')
         .update({
@@ -68,10 +68,20 @@ export default function AdminPurchases() {
         })
         .eq('id', id);
       if (error) throw error;
+
+      // If approving, trigger ticket assignment via edge function
+      if (status === 'APPROVED' && assignTickets) {
+        const { error: fnError } = await supabase.functions.invoke('process-client-purchase', {
+          body: { purchaseId: id, adminMode: true }
+        });
+        if (fnError) {
+          console.error('Ticket assignment error:', fnError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-purchases'] });
-      toast.success('Estado actualizado');
+      toast.success('Estado actualizado y tickets asignados');
       setSelectedPurchase(null);
     },
     onError: (error) => {
@@ -80,7 +90,7 @@ export default function AdminPurchases() {
   });
 
   const handleApprove = (purchase: Purchase) => {
-    updateStatusMutation.mutate({ id: purchase.id, status: 'APPROVED', notes: adminNotes });
+    updateStatusMutation.mutate({ id: purchase.id, status: 'APPROVED', notes: adminNotes, assignTickets: true });
   };
 
   const handleReject = (purchase: Purchase) => {
