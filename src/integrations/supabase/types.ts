@@ -389,6 +389,48 @@ export type Database = {
           },
         ]
       }
+      notification_templates: {
+        Row: {
+          channel: string
+          content_html: string | null
+          content_text: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          placeholders: string[] | null
+          subject: string | null
+          template_key: string
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          content_html?: string | null
+          content_text: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          placeholders?: string[] | null
+          subject?: string | null
+          template_key: string
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          content_html?: string | null
+          content_text?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          placeholders?: string[] | null
+          subject?: string | null
+          template_key?: string
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           created_at: string
@@ -470,6 +512,33 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          identifier: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          identifier: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          identifier?: string
+          request_count?: number
+          window_start?: string
         }
         Relationships: []
       }

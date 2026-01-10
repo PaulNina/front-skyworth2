@@ -48,6 +48,13 @@ const Footer = () => {
                 </a>
               </li>
             </ul>
+            {/* Discrete admin link */}
+            <Link 
+              to="/admin" 
+              className="text-xs text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors mt-4 inline-block"
+            >
+              •
+            </Link>
           </div>
 
           {/* Contact */}
