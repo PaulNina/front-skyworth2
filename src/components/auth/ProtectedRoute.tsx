@@ -7,6 +7,15 @@ interface ProtectedRouteProps {
   requiredRole?: 'admin' | 'seller';
 }
 
+/**
+ * ProtectedRoute - Protege rutas según autenticación y rol
+ * 
+ * IMPORTANTE: Los roles son SEPARADOS:
+ * - 'admin': Solo usuarios con rol admin pueden acceder
+ * - 'seller': Solo usuarios con rol seller pueden acceder (admin NO tiene acceso automático)
+ * 
+ * Un usuario puede tener ambos roles si es necesario.
+ */
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, loading, isAdmin, isSeller } = useAuth();
   const location = useLocation();
@@ -23,11 +32,13 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Admin routes: SOLO admins
   if (requiredRole === 'admin' && !isAdmin) {
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole === 'seller' && !isSeller && !isAdmin) {
+  // Seller routes: SOLO sellers (admin NO tiene acceso automático)
+  if (requiredRole === 'seller' && !isSeller) {
     return <Navigate to="/" replace />;
   }
 
