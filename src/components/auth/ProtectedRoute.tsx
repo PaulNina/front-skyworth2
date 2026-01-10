@@ -29,7 +29,16 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Redirigir a login con el contexto correcto
+    const redirectPath = location.pathname.replace(/^\//, ''); // Remove leading slash
+    const roleContext = requiredRole || '';
+    return (
+      <Navigate 
+        to={`/login?redirect=${redirectPath}&role=${roleContext}`} 
+        state={{ from: location }} 
+        replace 
+      />
+    );
   }
 
   // Admin routes: SOLO admins
