@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
+import { X, Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
-  role: "user" | "bot";
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
@@ -16,8 +18,8 @@ const ChatBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      role: "bot",
-      content: "¡Hola! Soy el Asistente Skyworth 2026. ¿En qué te puedo ayudar hoy?",
+      role: "assistant",
+      content: "¡Hola! Soy el Asistente Skyworth 2026. ¿En qué te puedo ayudar hoy? Pregúntame sobre la promoción, cómo participar, los premios o cualquier duda que tengas.",
       timestamp: new Date(),
     },
   ]);
@@ -34,49 +36,72 @@ const ChatBot = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isTyping) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: input.trim(),
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
     setInput("");
     setIsTyping(true);
 
-    // Simular respuesta del bot (esto se conectará con la Edge Function)
-    setTimeout(() => {
+    try {
+      // Build history for context (last 6 messages)
+      const history = messages.slice(-6).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const { data, error } = await supabase.functions.invoke("bot-chat", {
+        body: {
+          message: currentInput,
+          history,
+        },
+      });
+
+      if (error) {
+        console.error("Chat error:", error);
+        throw new Error(error.message || "Error al conectar con el asistente");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        role: "bot",
-        content: getBotResponse(input),
+        role: "assistant",
+        content: data?.response || "Lo siento, no pude procesar tu pregunta. ¿Podrías reformularla?",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botResponse]);
-      setIsTyping(false);
-    }, 1500);
-  };
+    } catch (error) {
+      console.error("Bot error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      
+      // Show toast for rate limit or payment errors
+      if (errorMessage.includes("Demasiadas") || errorMessage.includes("429")) {
+        toast.error("Por favor espera un momento antes de enviar más mensajes.");
+      } else if (errorMessage.includes("402") || errorMessage.includes("no disponible")) {
+        toast.error("El asistente está temporalmente no disponible.");
+      }
 
-  const getBotResponse = (question: string): string => {
-    const q = question.toLowerCase();
-    
-    if (q.includes("ticket") || q.includes("boleto")) {
-      return "Los tickets se asignan según el tamaño de tu TV: 1 ticket para 32\", 2 tickets para 43\"-50\", y 3 tickets para 55\"-65\". ¡Mientras más grande, más oportunidades!";
+      // Add error message to chat
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Lo siento, tuve un problema al procesar tu mensaje. Por favor intenta de nuevo en unos segundos.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorResponse]);
+    } finally {
+      setIsTyping(false);
     }
-    if (q.includes("registr") || q.includes("compra")) {
-      return "Para registrar tu compra necesitas: tu CI (anverso y reverso) y la factura de compra. Nuestro sistema validará automáticamente tus documentos.";
-    }
-    if (q.includes("sorteo") || q.includes("premio")) {
-      return "El sorteo se realizará el 15 de julio de 2026. Se seleccionarán 20 preseleccionados y de ellos saldrán 5 ganadores finales que viajarán al Mundial.";
-    }
-    if (q.includes("tienda") || q.includes("comprar") || q.includes("dónde")) {
-      return "Puedes adquirir tu TV Skyworth en cualquiera de nuestras tiendas autorizadas a nivel nacional. Consulta con tu vendedor más cercano.";
-    }
-    
-    return "No tengo información específica sobre eso. Te recomiendo revisar los Términos y Condiciones o contactar a nuestro equipo de soporte para más detalles.";
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -127,17 +152,17 @@ const ChatBot = () => {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-24 right-6 z-50 w-[350px] md:w-[400px] h-[500px] bg-skyworth-dark rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col"
+            className="fixed bottom-24 right-6 z-50 w-[350px] md:w-[400px] h-[500px] bg-background rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="p-4 bg-gradient-card-blue border-b border-border">
+            <div className="p-4 bg-muted border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-skyworth-dark" />
+                  <Bot className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground">Asistente Skyworth</h3>
-                  <p className="text-xs text-muted-foreground">Campaña 2026</p>
+                  <p className="text-xs text-muted-foreground">Campaña Mundial 2026</p>
                 </div>
               </div>
             </div>
@@ -151,12 +176,12 @@ const ChatBot = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  <div className={`chat-bubble ${message.role}`}>
+                  <div className={`chat-bubble ${message.role === "user" ? "user" : "bot"}`}>
                     <div className="flex items-start gap-2">
-                      {message.role === "bot" && (
+                      {message.role === "assistant" && (
                         <Bot className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       )}
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       {message.role === "user" && (
                         <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       )}
@@ -191,12 +216,13 @@ const ChatBot = () => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Escribe tu pregunta..."
+                  disabled={isTyping}
                   className="flex-1 bg-background border-border text-foreground placeholder:text-muted-foreground"
                 />
                 <Button
                   onClick={handleSend}
                   disabled={!input.trim() || isTyping}
-                  className="bg-gradient-gold text-skyworth-dark hover:opacity-90"
+                  className="bg-gradient-gold text-primary-foreground hover:opacity-90"
                 >
                   <Send className="w-4 h-4" />
                 </Button>
