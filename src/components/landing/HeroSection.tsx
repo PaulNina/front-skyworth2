@@ -2,10 +2,15 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import CountdownTimer from "@/components/ui/CountdownTimer";
+import { useCampaign } from "@/hooks/useCampaign";
 
 const HeroSection = () => {
-  // Fecha del sorteo - configurable desde admin
-  const sorteoDate = new Date("2026-07-15T20:00:00");
+  const { data: campaign, isLoading } = useCampaign();
+  
+  // Usar fecha de campaña desde DB, fallback a fecha por defecto
+  const sorteoDate = campaign?.draw_date 
+    ? new Date(campaign.draw_date) 
+    : new Date("2026-07-15T20:00:00");
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
