@@ -172,13 +172,40 @@ const RegistroCliente = () => {
         throw purchaseError;
       }
 
+      // Call AI validation Edge Function
+      try {
+        const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+          'process-client-purchase',
+          { body: { purchaseId: purchase.id } }
+        );
+
+        if (!validationError && validationResult) {
+          if (validationResult.iaStatus === 'VALID' && validationResult.ticketsAssigned?.length > 0) {
+            setAssignedTickets(validationResult.ticketsAssigned);
+            toast({
+              title: '¡Documentos validados!',
+              description: `Se te asignaron ${validationResult.ticketsAssigned.length} ticket(s) para el sorteo.`,
+            });
+          } else if (validationResult.iaStatus === 'INVALID') {
+            toast({
+              title: 'Documentos no válidos',
+              description: 'Por favor revisa tus documentos e intenta nuevamente.',
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'En revisión',
+              description: 'Tu compra será revisada por nuestro equipo. Te notificaremos pronto.',
+            });
+          }
+        }
+      } catch (fnError) {
+        console.error('Validation function error:', fnError);
+        // Continue even if validation fails - purchase is still registered
+      }
+
       // Show success modal
       setShowSuccess(true);
-      
-      toast({
-        title: '¡Registro exitoso!',
-        description: 'Tu compra ha sido registrada. Recibirás tus tickets una vez validados los documentos.',
-      });
 
     } catch (error: unknown) {
       const err = error as Error;
