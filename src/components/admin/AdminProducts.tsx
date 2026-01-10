@@ -16,7 +16,7 @@ import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Product = Tables<'products'>;
 
-const TIERS = ['BASIC', 'PLUS', 'PREMIUM'];
+const TIERS = ['T1', 'T2', 'T3'];
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
@@ -24,7 +24,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     model_name: '',
-    tier: 'BASIC',
+    tier: 'T1',
     screen_size: '',
     description: '',
     points_value: '',
@@ -87,7 +87,7 @@ export default function AdminProducts() {
     setEditingProduct(null);
     setFormData({
       model_name: '',
-      tier: 'BASIC',
+      tier: 'T1',
       screen_size: '',
       description: '',
       points_value: '',
@@ -125,8 +125,8 @@ export default function AdminProducts() {
 
   const getTierBadgeClass = (tier: string) => {
     switch (tier) {
-      case 'PREMIUM': return 'bg-primary text-primary-foreground';
-      case 'PLUS': return 'bg-secondary text-secondary-foreground';
+      case 'T3': return 'bg-primary text-primary-foreground';
+      case 'T2': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-muted text-muted-foreground';
     }
   };
