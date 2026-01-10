@@ -1,8 +1,18 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { User, Briefcase, ArrowRight } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const PathSelector = () => {
+  const { user, isSeller } = useAuth();
+
+  const getSellerLink = () => {
+    if (user && isSeller) {
+      return "/dashboard-vendedor";
+    }
+    return "/login?redirect=dashboard-vendedor&role=seller";
+  };
+
   const paths = [
     {
       id: "cliente",
@@ -18,7 +28,7 @@ const PathSelector = () => {
       title: "SOY VENDEDOR",
       description: "Trabajo en una tienda autorizada y quiero registrar ventas para ganar puntos.",
       icon: Briefcase,
-      link: "/portal-vendedor",
+      link: getSellerLink(),
       variant: "green" as const,
       badge: "SUMA PUNTOS",
     },

@@ -19,7 +19,13 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+  // Get redirect from URL params or location state
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
+  const roleParam = searchParams.get('role');
+  const from = redirectParam 
+    ? `/${redirectParam}` 
+    : (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +49,13 @@ export default function Login() {
     });
 
     navigate(from, { replace: true });
+  };
+
+  const getRegistrationLink = () => {
+    if (roleParam === 'seller') {
+      return '/registro-vendedor';
+    }
+    return '/registro-vendedor';
   };
 
   return (
@@ -121,7 +134,7 @@ export default function Login() {
                 <p className="text-sm text-gray-300 text-center">
                   ¿Eres vendedor y no tienes cuenta?{' '}
                   <Link
-                    to="/registro-vendedor"
+                    to={getRegistrationLink()}
                     className="text-skyworth-gold hover:underline font-medium"
                   >
                     Regístrate aquí

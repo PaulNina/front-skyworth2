@@ -122,25 +122,27 @@ const ChatBot = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-gold shadow-glow-gold flex items-center justify-center"
       >
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {isOpen ? (
-            <motion.div
+            <motion.span
               key="close"
               initial={{ rotate: -90, opacity: 0 }}
               animate={{ rotate: 0, opacity: 1 }}
               exit={{ rotate: 90, opacity: 0 }}
+              className="flex items-center justify-center"
             >
               <X className="w-7 h-7 text-skyworth-dark" />
-            </motion.div>
+            </motion.span>
           ) : (
-            <motion.div
+            <motion.span
               key="open"
               initial={{ rotate: 90, opacity: 0 }}
               animate={{ rotate: 0, opacity: 1 }}
               exit={{ rotate: -90, opacity: 0 }}
+              className="flex items-center justify-center"
             >
               <Bot className="w-7 h-7 text-skyworth-dark" />
-            </motion.div>
+            </motion.span>
           )}
         </AnimatePresence>
       </motion.button>

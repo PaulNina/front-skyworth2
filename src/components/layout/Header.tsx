@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Menu, X, User, LayoutDashboard } from "lucide-react";
+import { Trophy, Menu, X, User, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, isSeller, isAdmin, signOut } = useAuth();
 
   const navLinks = [
     { href: "/", label: "Inicio" },
@@ -15,6 +17,20 @@ const Header = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const getSellerLink = () => {
+    if (user && isSeller) {
+      return "/dashboard-vendedor";
+    }
+    return "/login?redirect=dashboard-vendedor&role=seller";
+  };
+
+  const getSellerLabel = () => {
+    if (user && isSeller) {
+      return "Mi Panel";
+    }
+    return "Portal Vendedor";
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 glass-effect">
@@ -50,17 +66,31 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <Link to="/portal-vendedor" className="hidden sm:block">
+            <Link to={getSellerLink()} className="hidden sm:block">
               <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
                 <User className="w-4 h-4 mr-2" />
-                Portal Vendedor
+                {getSellerLabel()}
               </Button>
             </Link>
-            <Link to="/admin" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <LayoutDashboard className="w-4 h-4" />
+            
+            {isAdmin && (
+              <Link to="/admin" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <LayoutDashboard className="w-4 h-4" />
+                </Button>
+              </Link>
+            )}
+
+            {user && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => signOut()}
+                className="hidden sm:flex text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4" />
               </Button>
-            </Link>
+            )}
 
             {/* Mobile Menu Toggle */}
             <button
@@ -97,14 +127,34 @@ const Header = () => {
                   {link.label}
                 </Link>
               ))}
-              <div className="pt-2 border-t border-border mt-2">
+              <div className="pt-2 border-t border-border mt-2 space-y-2">
                 <Link
-                  to="/portal-vendedor"
+                  to={getSellerLink()}
                   onClick={() => setIsMenuOpen(false)}
                   className="block px-4 py-2 rounded-lg text-sm font-medium text-primary"
                 >
-                  Portal Vendedor
+                  {getSellerLabel()}
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground"
+                  >
+                    Admin Panel
+                  </Link>
+                )}
+                {user && (
+                  <button
+                    onClick={() => {
+                      signOut();
+                      setIsMenuOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-destructive"
+                  >
+                    Cerrar Sesión
+                  </button>
+                )}
               </div>
             </nav>
           </motion.div>
