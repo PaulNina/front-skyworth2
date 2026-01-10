@@ -13,7 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Ticket, Plus, Search, RefreshCw } from 'lucide-react';
 
-const TIERS = ['BASIC', 'PLUS', 'PREMIUM'];
+const TIERS = ['T1', 'T2', 'T3'];
 
 export default function AdminTickets() {
   const queryClient = useQueryClient();
@@ -21,7 +21,7 @@ export default function AdminTickets() {
   const [tierFilter, setTierFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [generateForm, setGenerateForm] = useState({
-    tier: 'BASIC',
+    tier: 'T1',
     count: '100',
     prefix: 'TKT'
   });
@@ -88,7 +88,7 @@ export default function AdminTickets() {
       queryClient.invalidateQueries({ queryKey: ['ticket-stats'] });
       toast.success(`${count} tickets generados exitosamente`);
       setDialogOpen(false);
-      setGenerateForm({ tier: 'BASIC', count: '100', prefix: 'TKT' });
+      setGenerateForm({ tier: 'T1', count: '100', prefix: 'TKT' });
     },
     onError: (error) => {
       toast.error('Error al generar tickets: ' + error.message);
@@ -111,8 +111,8 @@ export default function AdminTickets() {
 
   const getTierBadgeClass = (tier: string) => {
     switch (tier) {
-      case 'PREMIUM': return 'bg-primary text-primary-foreground';
-      case 'PLUS': return 'bg-secondary text-secondary-foreground';
+      case 'T3': return 'bg-primary text-primary-foreground';
+      case 'T2': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-muted-foreground/20 text-muted-foreground';
     }
   };
