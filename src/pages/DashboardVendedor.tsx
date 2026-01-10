@@ -163,6 +163,31 @@ export default function DashboardVendedor() {
     );
   }
 
+  // Si el usuario no tiene perfil de vendedor, mostrar mensaje
+  if (!seller) {
+    return (
+      <div className="min-h-screen bg-skyworth-dark flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md px-4">
+            <Store className="h-16 w-16 text-skyworth-gold mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-white mb-2">No tienes perfil de vendedor</h1>
+            <p className="text-gray-400 mb-6">
+              Para acceder al panel de vendedor, primero debes registrarte como vendedor.
+            </p>
+            <Button 
+              className="btn-cta-primary"
+              onClick={() => window.location.href = '/registro-vendedor'}
+            >
+              Registrarme como Vendedor
+            </Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-skyworth-dark flex flex-col">
       <Header />
