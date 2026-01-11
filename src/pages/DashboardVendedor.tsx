@@ -195,25 +195,29 @@ export default function DashboardVendedor() {
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-white">
-                Panel de <span className="text-skyworth-gold">Vendedor</span>
-              </h1>
-              <p className="text-gray-400 flex items-center gap-2 mt-1">
-                <Store className="h-4 w-4" />
-                {seller?.store_name} • {seller?.store_city}
-              </p>
+          <div className="flex flex-col gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                  Panel de <span className="text-skyworth-gold">Vendedor</span>
+                </h1>
+                <p className="text-gray-400 flex items-center gap-2 mt-1">
+                  <Store className="h-4 w-4" />
+                  {seller?.store_name} • {seller?.store_city}
+                </p>
+              </div>
             </div>
-            <div className="flex gap-3">
+            
+            {/* Action buttons - separate row for visibility */}
+            <div className="flex flex-wrap gap-3">
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="btn-cta-primary">
+                  <Button className="btn-cta-primary flex-shrink-0">
                     <Plus className="h-4 w-4 mr-2" />
                     Registrar Venta
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-skyworth-dark border-white/10">
+                <DialogContent className="bg-skyworth-dark border-white/10 max-w-md mx-auto">
                   <DialogHeader>
                     <DialogTitle className="text-white">Nueva Venta</DialogTitle>
                   </DialogHeader>
@@ -299,7 +303,7 @@ export default function DashboardVendedor() {
               <Button 
                 variant="outline" 
                 onClick={() => signOut()}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="border-white/20 text-white hover:bg-white/10 flex-shrink-0"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Salir
