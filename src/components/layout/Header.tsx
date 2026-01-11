@@ -96,7 +96,9 @@ const Header = () => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => signOut()}
+                onClick={async () => {
+                  await signOut();
+                }}
                 className="hidden sm:flex text-muted-foreground hover:text-foreground"
               >
                 <LogOut className="w-4 h-4" />
@@ -165,9 +167,9 @@ const Header = () => {
                 
                 {user && (
                   <button
-                    onClick={() => {
-                      signOut();
+                    onClick={async () => {
                       setIsMenuOpen(false);
+                      await signOut();
                     }}
                     className="flex items-center gap-2 w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-destructive"
                   >
