@@ -124,6 +124,9 @@ export type Database = {
           reviewed_by: string | null
           serial_number: string
           terms_accepted: boolean
+          terms_accepted_at: string | null
+          tickets_count: number | null
+          tickets_issued_at: string | null
           updated_at: string
         }
         Insert: {
@@ -151,6 +154,9 @@ export type Database = {
           reviewed_by?: string | null
           serial_number: string
           terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          tickets_count?: number | null
+          tickets_issued_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -178,6 +184,9 @@ export type Database = {
           reviewed_by?: string | null
           serial_number?: string
           terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          tickets_count?: number | null
+          tickets_issued_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -430,6 +439,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      participant_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          issued_at: string
+          purchase_id: string | null
+          ticket_code: string
+          ticket_id: string | null
+          tier: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issued_at?: string
+          purchase_id?: string | null
+          ticket_code: string
+          ticket_id?: string | null
+          tier: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issued_at?: string
+          purchase_id?: string | null
+          ticket_code?: string
+          ticket_id?: string | null
+          tier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_tickets_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "client_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_tickets_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: true
+            referencedRelation: "ticket_pool"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -780,6 +834,67 @@ export type Database = {
           },
         ]
       }
+      tv_serial_registry: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string | null
+          registered_at: string | null
+          registered_by_purchase_id: string | null
+          serial_number: string
+          status: string
+          ticket_multiplier: number
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          registered_at?: string | null
+          registered_by_purchase_id?: string | null
+          serial_number: string
+          status?: string
+          ticket_multiplier?: number
+          tier?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          registered_at?: string | null
+          registered_by_purchase_id?: string | null
+          serial_number?: string
+          status?: string
+          ticket_multiplier?: number
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_serial_registry_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_serial_registry_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_top_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_serial_registry_registered_by_purchase_id_fkey"
+            columns: ["registered_by_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "client_purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -860,6 +975,16 @@ export type Database = {
           ticket_code: string
         }[]
       }
+      rpc_city_rankings: {
+        Args: never
+        Returns: {
+          city: string
+          rank_position: number
+          total_points: number
+          total_sales: number
+          total_sellers: number
+        }[]
+      }
       rpc_kb_search: {
         Args: { max_results?: number; query_text: string }
         Returns: {
@@ -870,6 +995,18 @@ export type Database = {
           title: string
         }[]
       }
+      rpc_public_rankings: {
+        Args: never
+        Returns: {
+          display_name: string
+          rank_position: number
+          ranking_type: string
+          store_city: string
+          total_points: number
+          total_sales: number
+        }[]
+      }
+      rpc_request_seller_role: { Args: never; Returns: boolean }
       rpc_run_draw: {
         Args: {
           p_draw_id: string
@@ -878,6 +1015,7 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_validate_serial: { Args: { p_serial: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "seller" | "user"

@@ -104,13 +104,9 @@ export default function RegistroVendedor() {
 
       if (sellerError) throw sellerError;
 
-      // 4. Assign seller role
+      // 4. Assign seller role using secure RPC
       const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          role: 'seller',
-        });
+        .rpc('rpc_request_seller_role');
 
       if (roleError) throw roleError;
 

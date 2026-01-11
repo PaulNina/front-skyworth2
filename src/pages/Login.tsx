@@ -31,8 +31,14 @@ export default function Login() {
     ? `/${redirectParam}` 
     : (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
+  const { loading } = useAuth();
+
   // Si ya está autenticado, redirigir según rol
+  // IMPORTANTE: Esperar a que los roles estén cargados (loading = false)
   useEffect(() => {
+    // No redirigir mientras se cargan los roles
+    if (loading) return;
+    
     if (user) {
       // Contexto admin: solo admins pueden ir a /admin
       if (isAdminContext) {
@@ -40,6 +46,11 @@ export default function Login() {
           navigate('/admin', { replace: true });
         } else {
           // Usuario autenticado pero no es admin, ir a inicio
+          toast({
+            title: 'Acceso denegado',
+            description: 'No tienes permisos de administrador',
+            variant: 'destructive',
+          });
           navigate('/', { replace: true });
         }
         return;
@@ -51,19 +62,28 @@ export default function Login() {
           navigate('/dashboard-vendedor', { replace: true });
         } else {
           // Usuario autenticado pero no es seller, ir a inicio
+          toast({
+            title: 'Acceso denegado',
+            description: 'No tienes perfil de vendedor registrado',
+            variant: 'destructive',
+          });
           navigate('/', { replace: true });
         }
         return;
       }
       
-      // Sin contexto específico, ir a donde se solicitó o inicio
-      if (from !== '/login') {
+      // Sin contexto específico, redirigir según el rol del usuario
+      if (isAdmin) {
+        navigate('/admin', { replace: true });
+      } else if (isSeller) {
+        navigate('/dashboard-vendedor', { replace: true });
+      } else if (from !== '/login') {
         navigate(from, { replace: true });
       } else {
         navigate('/', { replace: true });
       }
     }
-  }, [user, isAdmin, isSeller, isAdminContext, isSellerContext, from, navigate]);
+  }, [user, isAdmin, isSeller, isAdminContext, isSellerContext, from, navigate, loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

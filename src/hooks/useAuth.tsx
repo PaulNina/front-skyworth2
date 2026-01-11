@@ -52,39 +52,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Defer role fetching to avoid blocking
-          setTimeout(async () => {
-            const userRoles = await fetchRoles(session.user.id);
+          // Fetch roles immediately (not deferred) to ensure they're ready
+          const userRoles = await fetchRoles(session.user.id);
+          if (mounted) {
             setRoles(userRoles);
-          }, 0);
+            setLoading(false);
+          }
         } else {
           setRoles([]);
+          setLoading(false);
         }
-
-        setLoading(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        fetchRoles(session.user.id).then(setRoles);
+        const userRoles = await fetchRoles(session.user.id);
+        if (mounted) {
+          setRoles(userRoles);
+        }
       }
 
-      setLoading(false);
-    });
+      if (mounted) {
+        setLoading(false);
+      }
+    };
+    
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
