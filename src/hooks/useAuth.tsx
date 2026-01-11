@@ -1,3 +1,4 @@
+// Auth context with proper role loading - Updated 2026-01-11
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
