@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  rolesLoaded: boolean;
   roles: UserRole[];
   isAdmin: boolean;
   isSeller: boolean;
@@ -23,9 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const [roles, setRoles] = useState<UserRole[]>([]);
 
-  const fetchRoles = async (userId: string) => {
+  const fetchRoles = async (userId: string): Promise<UserRole[]> => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
@@ -48,54 +50,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       const userRoles = await fetchRoles(user.id);
       setRoles(userRoles);
+      setRolesLoaded(true);
     }
   };
 
   useEffect(() => {
     let mounted = true;
 
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    // Initialize auth - check for existing session FIRST
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
         if (!mounted) return;
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-        if (session?.user) {
-          // Fetch roles immediately (not deferred) to ensure they're ready
-          const userRoles = await fetchRoles(session.user.id);
+        if (currentSession?.user) {
+          // Fetch roles and WAIT for them before setting loading to false
+          const userRoles = await fetchRoles(currentSession.user.id);
           if (mounted) {
             setRoles(userRoles);
-            setLoading(false);
+            setRolesLoaded(true);
           }
         } else {
+          // No user, roles are "loaded" (empty)
+          setRolesLoaded(true);
+        }
+
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setLoading(false);
+          setRolesLoaded(true);
+        }
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (!mounted) return;
+
+        // Update session/user immediately
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (newSession?.user) {
+          // Mark roles as loading when user changes
+          setRolesLoaded(false);
+          
+          // Fetch roles for the new user
+          const userRoles = await fetchRoles(newSession.user.id);
+          if (mounted) {
+            setRoles(userRoles);
+            setRolesLoaded(true);
+          }
+        } else {
+          // User signed out
           setRoles([]);
+          setRolesLoaded(true);
+        }
+
+        // Only set loading to false after initial load
+        if (loading && mounted) {
           setLoading(false);
         }
       }
     );
 
-    // THEN check for existing session
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const userRoles = await fetchRoles(session.user.id);
-        if (mounted) {
-          setRoles(userRoles);
-        }
-      }
-
-      if (mounted) {
-        setLoading(false);
-      }
-    };
-    
     initializeAuth();
 
     return () => {
@@ -105,6 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Reset roles loaded state before sign in
+    setRolesLoaded(false);
+    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -127,12 +157,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setRoles([]);
+    setRolesLoaded(true);
   };
 
   const value = {
     user,
     session,
     loading,
+    rolesLoaded,
     roles,
     isAdmin: roles.includes('admin'),
     isSeller: roles.includes('seller'),

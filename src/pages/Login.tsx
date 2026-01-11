@@ -15,7 +15,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user, isAdmin, isSeller } = useAuth();
+  const { signIn, user, isAdmin, isSeller, loading, rolesLoaded } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,59 +31,56 @@ export default function Login() {
     ? `/${redirectParam}` 
     : (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
-  const { loading } = useAuth();
-
-  // Si ya está autenticado, redirigir según rol
-  // IMPORTANTE: Esperar a que los roles estén cargados (loading = false)
+  // Redirect logic - ONLY when roles are fully loaded
   useEffect(() => {
-    // No redirigir mientras se cargan los roles
-    if (loading) return;
+    // Wait until loading is false AND roles have been loaded
+    if (loading || !rolesLoaded) return;
     
-    if (user) {
-      // Contexto admin: solo admins pueden ir a /admin
-      if (isAdminContext) {
-        if (isAdmin) {
-          navigate('/admin', { replace: true });
-        } else {
-          // Usuario autenticado pero no es admin, ir a inicio
-          toast({
-            title: 'Acceso denegado',
-            description: 'No tienes permisos de administrador',
-            variant: 'destructive',
-          });
-          navigate('/', { replace: true });
-        }
-        return;
-      }
-      
-      // Contexto seller: solo sellers pueden ir a /dashboard-vendedor
-      if (isSellerContext) {
-        if (isSeller) {
-          navigate('/dashboard-vendedor', { replace: true });
-        } else {
-          // Usuario autenticado pero no es seller, ir a inicio
-          toast({
-            title: 'Acceso denegado',
-            description: 'No tienes perfil de vendedor registrado',
-            variant: 'destructive',
-          });
-          navigate('/', { replace: true });
-        }
-        return;
-      }
-      
-      // Sin contexto específico, redirigir según el rol del usuario
+    if (!user) return;
+
+    // User is authenticated and roles are loaded - now we can safely redirect
+    
+    // Admin context: only admins can go to /admin
+    if (isAdminContext) {
       if (isAdmin) {
         navigate('/admin', { replace: true });
-      } else if (isSeller) {
-        navigate('/dashboard-vendedor', { replace: true });
-      } else if (from !== '/login') {
-        navigate(from, { replace: true });
       } else {
+        toast({
+          title: 'Acceso denegado',
+          description: 'No tienes permisos de administrador',
+          variant: 'destructive',
+        });
         navigate('/', { replace: true });
       }
+      return;
     }
-  }, [user, isAdmin, isSeller, isAdminContext, isSellerContext, from, navigate, loading]);
+    
+    // Seller context: only sellers can go to /dashboard-vendedor
+    if (isSellerContext) {
+      if (isSeller) {
+        navigate('/dashboard-vendedor', { replace: true });
+      } else {
+        toast({
+          title: 'Acceso denegado',
+          description: 'No tienes perfil de vendedor registrado',
+          variant: 'destructive',
+        });
+        navigate('/', { replace: true });
+      }
+      return;
+    }
+    
+    // No specific context - redirect based on user's actual role
+    if (isAdmin) {
+      navigate('/admin', { replace: true });
+    } else if (isSeller) {
+      navigate('/dashboard-vendedor', { replace: true });
+    } else if (from !== '/login') {
+      navigate(from, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [user, isAdmin, isSeller, isAdminContext, isSellerContext, from, navigate, loading, rolesLoaded]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +103,8 @@ export default function Login() {
       description: 'Has iniciado sesión correctamente.',
     });
 
-    // La redirección se maneja en el useEffect
+    // Keep isLoading true - the redirect will happen via useEffect
+    // once roles are loaded
   };
 
   const getTitle = () => {
@@ -136,7 +134,7 @@ export default function Login() {
     <div className="min-h-screen bg-skyworth-dark flex flex-col">
       <Header />
       
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
+      <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

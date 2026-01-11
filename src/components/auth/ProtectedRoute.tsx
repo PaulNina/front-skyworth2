@@ -15,12 +15,16 @@ interface ProtectedRouteProps {
  * - 'seller': Solo usuarios con rol seller pueden acceder (admin NO tiene acceso automático)
  * 
  * Un usuario puede tener ambos roles si es necesario.
+ * 
+ * CRITICAL: Waits for both loading AND rolesLoaded to be complete before
+ * making any navigation decisions to prevent race conditions.
  */
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading, isAdmin, isSeller } = useAuth();
+  const { user, loading, rolesLoaded, isAdmin, isSeller } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  // Show loading while auth state OR roles are being loaded
+  if (loading || !rolesLoaded) {
     return (
       <div className="min-h-screen bg-skyworth-dark flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-skyworth-gold" />
@@ -28,9 +32,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
+  // Not authenticated - redirect to login
   if (!user) {
-    // Redirigir a login con el contexto correcto
-    const redirectPath = location.pathname.replace(/^\//, ''); // Remove leading slash
+    const redirectPath = location.pathname.replace(/^\//, '');
     const roleContext = requiredRole || '';
     return (
       <Navigate 
@@ -41,12 +45,12 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  // Admin routes: SOLO admins
+  // Admin routes: ONLY admins (not sellers without admin role)
   if (requiredRole === 'admin' && !isAdmin) {
     return <Navigate to="/" replace />;
   }
 
-  // Seller routes: SOLO sellers (admin NO tiene acceso automático)
+  // Seller routes: ONLY sellers (admin does NOT have automatic access)
   if (requiredRole === 'seller' && !isSeller) {
     return <Navigate to="/" replace />;
   }

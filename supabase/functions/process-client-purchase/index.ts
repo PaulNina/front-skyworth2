@@ -329,9 +329,9 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
     // STEP 5: Log notifications
     // =====================================================
     if (finalAdminStatus === 'APPROVED' && assignedTickets.length > 0) {
-      // Email notification
+      // Email notification - use uppercase to match CHECK constraint
       await supabase.from("notification_log").insert({
-        notification_type: "email",
+        notification_type: "EMAIL",
         recipient: purchase.email,
         subject: "🎫 ¡Tus tickets para el Mundial Skyworth 2026!",
         content: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${assignedTickets.length} ticket(s) para el sorteo: ${assignedTickets.join(", ")}. ¡Mucha suerte!`,
@@ -339,10 +339,10 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
         related_purchase_id: purchaseId
       });
 
-      // WhatsApp notification
+      // WhatsApp notification - use uppercase
       if (purchase.phone) {
         await supabase.from("notification_log").insert({
-          notification_type: "whatsapp",
+          notification_type: "WHATSAPP",
           recipient: purchase.phone,
           content: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${assignedTickets.length} ticket(s): ${assignedTickets.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
           status: "PENDING",
@@ -354,7 +354,7 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
       const rejectionReason = adminNotes || (iaDetail as Record<string, string>).rejection_reason || 'Los documentos no pudieron ser validados';
       
       await supabase.from("notification_log").insert({
-        notification_type: "email",
+        notification_type: "EMAIL",
         recipient: purchase.email,
         subject: "ℹ️ Estado de tu registro - Skyworth 2026",
         content: `Hola ${purchase.full_name}, lamentamos informarte que tu registro no pudo ser aprobado. Motivo: ${rejectionReason}. Puedes intentar registrarte nuevamente con documentos válidos.`,
