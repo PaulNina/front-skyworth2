@@ -108,7 +108,9 @@ export default function Admin() {
             <Button
               variant="ghost"
               className="w-full justify-start text-gray-400 hover:text-white hover:bg-gray-700"
-              onClick={() => signOut()}
+              onClick={async () => {
+                await signOut();
+              }}
             >
               <LogOut className="h-5 w-5 mr-3" />
               Cerrar Sesión

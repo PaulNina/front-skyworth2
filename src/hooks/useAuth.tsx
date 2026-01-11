@@ -19,7 +19,12 @@ interface AuthContextType {
   refreshRoles: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Keep a stable Context reference across Vite HMR to avoid "useAuth must be used within an AuthProvider"
+// when this module is hot-reloaded but some consumers/providers still hold the previous instance.
+const AUTH_CONTEXT_KEY = "__SKYWORTH_AUTH_CONTEXT__";
+const AuthContext = ((globalThis as any)[AUTH_CONTEXT_KEY] ??
+  createContext<AuthContextType | undefined>(undefined)) as ReturnType<typeof createContext<AuthContextType | undefined>>;
+(globalThis as any)[AUTH_CONTEXT_KEY] = AuthContext;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
