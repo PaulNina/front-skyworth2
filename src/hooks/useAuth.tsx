@@ -1,7 +1,15 @@
-// Auth context with proper role loading - Updated 2026-01-11
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+/**
+ * Auth Context - Skyworth Mundial 2026
+ * 
+ * CRITICAL: Este hook maneja autenticación Y roles de forma robusta.
+ * - rolesLoaded: true solo cuando la consulta de roles terminó exitosamente
+ * - rolesError: string cuando hubo error al cargar roles (diferente de "sin permisos")
+ * - refreshRoles: permite reintentar carga de roles
+ */
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 type UserRole = 'admin' | 'seller' | 'user';
 
@@ -10,11 +18,12 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   rolesLoaded: boolean;
+  rolesError: string | null; // NUEVO: error al cargar roles
   roles: UserRole[];
   isAdmin: boolean;
   isSeller: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<{ error: Error | null; needsEmailConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
 }
@@ -31,9 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [rolesLoaded, setRolesLoaded] = useState(false);
+  const [rolesError, setRolesError] = useState<string | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
 
-  const fetchRoles = async (userId: string): Promise<UserRole[]> => {
+  // CRITICAL: fetchRoles retorna { roles, error } para distinguir error de vacío
+  const fetchRoles = useCallback(async (userId: string): Promise<{ roles: UserRole[]; error: string | null }> => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
@@ -42,36 +53,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('Error fetching roles:', error);
-        return [];
+        return { roles: [], error: `Error al cargar permisos: ${error.message}` };
       }
 
-      return (data?.map(r => r.role as UserRole)) || [];
+      return { 
+        roles: (data?.map(r => r.role as UserRole)) || [],
+        error: null 
+      };
     } catch (err) {
       console.error('Error in fetchRoles:', err);
-      return [];
+      return { roles: [], error: 'Error de conexión al cargar permisos' };
     }
-  };
+  }, []);
 
-  const refreshRoles = async () => {
-    if (user) {
-      const userRoles = await fetchRoles(user.id);
-      setRoles(userRoles);
-      setRolesLoaded(true);
-    }
-  };
+  // refreshRoles: puede ser llamado desde UI para reintentar
+  const refreshRoles = useCallback(async () => {
+    if (!user) return;
+    
+    setRolesLoaded(false);
+    setRolesError(null);
+    
+    const result = await fetchRoles(user.id);
+    setRoles(result.roles);
+    setRolesError(result.error);
+    setRolesLoaded(true);
+  }, [user, fetchRoles]);
 
   useEffect(() => {
     let mounted = true;
 
-    // If we previously forced a one-time reload to heal HMR context mismatch,
-    // clear the flag once the provider mounts successfully.
+    // Clear HMR reload flag
     try {
       sessionStorage.removeItem("__AUTHCTX_RELOAD_ONCE__");
     } catch {
       // ignore
     }
 
-    // Initialize auth - check for existing session FIRST
     const initializeAuth = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -82,14 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          // Fetch roles and WAIT for them before setting loading to false
-          const userRoles = await fetchRoles(currentSession.user.id);
+          const result = await fetchRoles(currentSession.user.id);
           if (mounted) {
-            setRoles(userRoles);
+            setRoles(result.roles);
+            setRolesError(result.error);
             setRolesLoaded(true);
           }
         } else {
-          // No user, roles are "loaded" (empty)
           setRolesLoaded(true);
         }
 
@@ -101,36 +117,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           setLoading(false);
           setRolesLoaded(true);
+          setRolesError('Error al inicializar autenticación');
         }
       }
     };
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
 
-        // Update session/user immediately
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          // Mark roles as loading when user changes
           setRolesLoaded(false);
+          setRolesError(null);
           
-          // Fetch roles for the new user
-          const userRoles = await fetchRoles(newSession.user.id);
+          const result = await fetchRoles(newSession.user.id);
           if (mounted) {
-            setRoles(userRoles);
+            setRoles(result.roles);
+            setRolesError(result.error);
             setRolesLoaded(true);
           }
         } else {
-          // User signed out
           setRoles([]);
+          setRolesError(null);
           setRolesLoaded(true);
         }
 
-        // Only set loading to false after initial load
         if (loading && mounted) {
           setLoading(false);
         }
@@ -143,21 +157,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchRoles]);
 
-  const signIn = async (email: string, password: string) => {
-    // Reset roles loaded state before sign in
+  const signIn = useCallback(async (email: string, password: string) => {
     setRolesLoaded(false);
+    setRolesError(null);
     
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     return { error: error as Error | null };
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, metadata?: Record<string, unknown>) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, unknown>) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -165,34 +179,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: metadata,
       },
     });
-    return { error: error as Error | null };
-  };
+    
+    // CRITICAL: detectar si requiere confirmación de email
+    const needsEmailConfirmation = !error && data?.user && !data?.session;
+    
+    return { 
+      error: error as Error | null,
+      needsEmailConfirmation 
+    };
+  }, []);
 
-  const signOut = async () => {
+  // FIXED: signOut sin hard refresh, usa React Router
+  const signOut = useCallback(async () => {
     try {
-      // Clear state first to prevent UI freeze
+      // Clear state first
       setRoles([]);
       setUser(null);
       setSession(null);
       setRolesLoaded(true);
+      setRolesError(null);
       
-      // Then sign out from Supabase
       await supabase.auth.signOut();
-      
-      // Navigate to home after successful logout
-      window.location.href = '/';
+      // Navigation se manejará desde el componente que llama
     } catch (error) {
       console.error('Error signing out:', error);
-      // Force navigation even on error
-      window.location.href = '/';
+      throw error;
     }
-  };
+  }, []);
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     loading,
     rolesLoaded,
+    rolesError,
     roles,
     isAdmin: roles.includes('admin'),
     isSeller: roles.includes('seller'),
@@ -208,9 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
 
-  // In dev (Vite HMR), React Context can temporarily mismatch between Provider/Consumer
-  // after a hot update. Instead of hard-crashing into a blank screen, force a one-time
-  // full reload to restore a consistent module graph.
+  // HMR recovery for dev
   if (context === undefined) {
     if (import.meta.env.DEV) {
       try {
@@ -223,17 +241,17 @@ export function useAuth() {
         // ignore
       }
 
-      // Minimal safe fallback while the reload happens.
       return {
         user: null,
         session: null,
         loading: true,
         rolesLoaded: false,
+        rolesError: null,
         roles: [],
         isAdmin: false,
         isSeller: false,
-        signIn: async () => ({ error: new Error("Auth inicializando, recargando...") }),
-        signUp: async () => ({ error: new Error("Auth inicializando, recargando...") }),
+        signIn: async () => ({ error: new Error("Auth inicializando...") }),
+        signUp: async () => ({ error: new Error("Auth inicializando...") }),
         signOut: async () => {},
         refreshRoles: async () => {},
       } as AuthContextType;
