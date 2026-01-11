@@ -16,6 +16,7 @@ const RegistroVendedor = lazy(() => import("./pages/RegistroVendedor"));
 const Rankings = lazy(() => import("./pages/Rankings"));
 const DashboardVendedor = lazy(() => import("./pages/DashboardVendedor"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Resultados = lazy(() => import("./pages/Resultados"));
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/registro-vendedor" element={<RegistroVendedor />} />
               <Route path="/rankings" element={<Rankings />} />
+              <Route path="/resultados" element={<Resultados />} />
               
               {/* Protected seller routes */}
               <Route
