@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,6 +25,44 @@ const STATUS_OPTIONS = [
   { value: 'APPROVED', label: 'Aprobados' },
   { value: 'REJECTED', label: 'Rechazados' },
 ];
+
+// Helper component to display document links with signed URLs
+const DocumentLink = ({ path, label }: { path: string; label: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getSignedUrl = async () => {
+      const { data } = await supabase.storage
+        .from('purchase-documents')
+        .createSignedUrl(path, 3600); // 1 hour expiry
+      if (data?.signedUrl) {
+        setUrl(data.signedUrl);
+      }
+    };
+    getSignedUrl();
+  }, [path]);
+
+  if (!url) {
+    return (
+      <span className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg text-muted-foreground">
+        <FileText className="h-4 w-4" />
+        {label}...
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg text-foreground hover:bg-accent transition-colors"
+    >
+      <FileText className="h-4 w-4" />
+      {label}
+    </a>
+  );
+};
 
 export default function AdminPurchases() {
   const queryClient = useQueryClient();
@@ -283,39 +321,18 @@ export default function AdminPurchases() {
               {/* Documents */}
               <div className="pt-4 border-t border-border">
                 <p className="text-muted-foreground text-sm mb-3">Documentos</p>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   {selectedPurchase.ci_front_url && (
-                    <a
-                      href={selectedPurchase.ci_front_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg text-foreground hover:bg-accent transition-colors"
-                    >
-                      <FileText className="h-4 w-4" />
-                      CI Frontal
-                    </a>
+                    <DocumentLink path={selectedPurchase.ci_front_url} label="CI Frontal" />
                   )}
                   {selectedPurchase.ci_back_url && (
-                    <a
-                      href={selectedPurchase.ci_back_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg text-foreground hover:bg-accent transition-colors"
-                    >
-                      <FileText className="h-4 w-4" />
-                      CI Posterior
-                    </a>
+                    <DocumentLink path={selectedPurchase.ci_back_url} label="CI Posterior" />
                   )}
                   {selectedPurchase.invoice_url && (
-                    <a
-                      href={selectedPurchase.invoice_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-background rounded-lg text-foreground hover:bg-accent transition-colors"
-                    >
-                      <FileText className="h-4 w-4" />
-                      Factura
-                    </a>
+                    <DocumentLink path={selectedPurchase.invoice_url} label="Factura" />
+                  )}
+                  {!selectedPurchase.ci_front_url && !selectedPurchase.ci_back_url && !selectedPurchase.invoice_url && (
+                    <p className="text-muted-foreground text-sm">No hay documentos adjuntos</p>
                   )}
                 </div>
               </div>
