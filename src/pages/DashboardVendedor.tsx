@@ -1,5 +1,13 @@
+/**
+ * Dashboard Vendedor - Skyworth Mundial 2026
+ * 
+ * CRITICAL FIX: Diferenciar "no existe vendedor" vs "error de consulta"
+ * - Error técnico → mostrar UI de error con reintentar
+ * - No existe registro → mostrar CTA para registrarse
+ */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from '@/hooks/use-toast';
 import { 
   Trophy, Store, TrendingUp, Package, Plus, LogOut, 
-  Loader2, Calendar, User, Phone, Award
+  Loader2, Calendar, User, Phone, Award, AlertTriangle, RefreshCw, Home
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -43,6 +51,7 @@ interface Sale {
 
 export default function DashboardVendedor() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: products } = useProducts();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -55,8 +64,13 @@ export default function DashboardVendedor() {
     saleDate: new Date().toISOString().split('T')[0],
   });
 
-  // Fetch seller data
-  const { data: seller, isLoading: loadingSeller } = useQuery({
+  // CRITICAL: Fetch seller con manejo explícito de error vs no-existe
+  const { 
+    data: seller, 
+    isLoading: loadingSeller,
+    error: sellerError,
+    refetch: refetchSeller
+  } = useQuery({
     queryKey: ['seller', user?.id],
     queryFn: async (): Promise<Seller | null> => {
       if (!user) return null;
@@ -66,10 +80,12 @@ export default function DashboardVendedor() {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      // CRITICAL: Propagar error para diferenciarlo de "no existe"
       if (error) throw error;
       return data;
     },
     enabled: !!user,
+    retry: 1,
   });
 
   // Fetch sales
@@ -155,39 +171,115 @@ export default function DashboardVendedor() {
     registerSale.mutate();
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
+
+  // Estado: Cargando
   if (loadingSeller) {
     return (
       <div className="min-h-screen bg-skyworth-dark flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-skyworth-gold" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-skyworth-gold mx-auto mb-4" />
+          <p className="text-gray-400">Cargando perfil de vendedor...</p>
+        </div>
       </div>
     );
   }
 
-  // Si el usuario no tiene perfil de vendedor, mostrar mensaje
-  if (!seller) {
+  // CRITICAL: Estado de ERROR técnico (RLS, conexión, etc.)
+  if (sellerError) {
     return (
       <div className="min-h-screen bg-skyworth-dark flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center pt-24 pb-8">
-          <div className="text-center max-w-md px-4">
-            <Store className="h-16 w-16 text-skyworth-gold mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-white mb-2">No tienes perfil de vendedor</h1>
-            <p className="text-gray-400 mb-6">
-              Para acceder al panel de vendedor, primero debes registrarte como vendedor.
-            </p>
-            <Button 
-              className="btn-cta-primary"
-              onClick={() => window.location.href = '/registro-vendedor'}
-            >
-              Registrarme como Vendedor
-            </Button>
-          </div>
+        <main className="flex-1 flex items-center justify-center pt-24 pb-8 px-4">
+          <Card className="bg-white/10 border-red-500/30 max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-red-400" />
+              </div>
+              <CardTitle className="text-xl text-white">Error técnico</CardTitle>
+              <CardDescription className="text-gray-300">
+                No se pudo cargar tu perfil de vendedor. Esto puede ser un problema temporal.
+              </CardDescription>
+              <p className="text-xs text-red-400 mt-2">
+                {(sellerError as Error).message}
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Button 
+                onClick={() => refetchSeller()}
+                className="w-full bg-skyworth-gold hover:bg-skyworth-gold/90 text-black"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reintentar
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => navigate('/')}
+                className="w-full border-white/20 text-white hover:bg-white/10"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Ir al inicio
+              </Button>
+              <Button 
+                variant="ghost"
+                onClick={handleSignOut}
+                className="w-full text-gray-400 hover:text-white hover:bg-white/10"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Cerrar sesión
+              </Button>
+            </CardContent>
+          </Card>
         </main>
         <Footer />
       </div>
     );
   }
 
+  // Estado: No existe perfil de vendedor (consulta exitosa, pero sin datos)
+  if (!seller) {
+    return (
+      <div className="min-h-screen bg-skyworth-dark flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center pt-24 pb-8 px-4">
+          <Card className="bg-white/10 border-skyworth-green/30 max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 bg-skyworth-green/20 rounded-full flex items-center justify-center">
+                <Store className="h-8 w-8 text-skyworth-green" />
+              </div>
+              <CardTitle className="text-xl text-white">No tienes perfil de vendedor</CardTitle>
+              <CardDescription className="text-gray-300">
+                Tu cuenta existe pero no tienes un registro de vendedor. Completa tu registro para acceder al panel.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Button 
+                onClick={() => navigate('/registro-vendedor')}
+                className="w-full btn-cta-primary"
+              >
+                <Store className="h-4 w-4 mr-2" />
+                Completar registro de vendedor
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => navigate('/')}
+                className="w-full border-white/20 text-white hover:bg-white/10"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Ir al inicio
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Estado: Dashboard normal
   return (
     <div className="min-h-screen bg-skyworth-dark flex flex-col">
       <Header />
@@ -208,7 +300,7 @@ export default function DashboardVendedor() {
               </div>
             </div>
             
-            {/* Action buttons - separate row for visibility */}
+            {/* Action buttons */}
             <div className="flex flex-wrap gap-3">
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
@@ -302,7 +394,7 @@ export default function DashboardVendedor() {
               </Dialog>
               <Button 
                 variant="outline" 
-                onClick={() => signOut()}
+                onClick={handleSignOut}
                 className="border-white/20 text-white hover:bg-white/10 flex-shrink-0"
               >
                 <LogOut className="h-4 w-4 mr-2" />
@@ -350,7 +442,7 @@ export default function DashboardVendedor() {
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start text-white hover:bg-white/10"
-                    onClick={() => window.location.href = '/rankings'}
+                    onClick={() => navigate('/rankings')}
                   >
                     <TrendingUp className="h-5 w-5 mr-2" />
                     Ver mi posición

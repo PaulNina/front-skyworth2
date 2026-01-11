@@ -1,4 +1,11 @@
-import { useState } from 'react';
+/**
+ * Registro Vendedor - Skyworth Mundial 2026
+ * 
+ * CRITICAL FIX: Compatible con confirmación de email
+ * - Si hay sesión inmediata → continuar registro
+ * - Si requiere confirmación → guardar form y mostrar mensaje
+ */
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,7 +17,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Store } from 'lucide-react';
+import { Loader2, UserPlus, Store, Mail, CheckCircle } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
@@ -18,6 +25,17 @@ const DEPARTMENTS = [
   'La Paz', 'Cochabamba', 'Santa Cruz', 'Oruro', 'Potosí', 
   'Chuquisaca', 'Tarija', 'Beni', 'Pando'
 ];
+
+const PENDING_REGISTRATION_KEY = 'skyworth_pending_seller_registration';
+
+interface PendingRegistration {
+  fullName: string;
+  email: string;
+  phone: string;
+  storeName: string;
+  storeCity: string;
+  storeDepartment: string;
+}
 
 export default function RegistroVendedor() {
   const [formData, setFormData] = useState({
@@ -32,8 +50,92 @@ export default function RegistroVendedor() {
     termsAccepted: false,
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [isCompletingRegistration, setIsCompletingRegistration] = useState(false);
+  
+  const { signUp, user } = useAuth();
   const navigate = useNavigate();
+
+  // CRITICAL: Verificar si hay registro pendiente al cargar con usuario confirmado
+  useEffect(() => {
+    const completePendingRegistration = async () => {
+      if (!user) return;
+      
+      const pendingDataStr = localStorage.getItem(PENDING_REGISTRATION_KEY);
+      if (!pendingDataStr) return;
+      
+      try {
+        const pendingData: PendingRegistration = JSON.parse(pendingDataStr);
+        setIsCompletingRegistration(true);
+        
+        // Verificar si ya tiene perfil de vendedor
+        const { data: existingSeller } = await supabase
+          .from('sellers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (existingSeller) {
+          // Ya tiene perfil, limpiar y redirigir
+          localStorage.removeItem(PENDING_REGISTRATION_KEY);
+          toast({
+            title: '¡Ya tienes perfil de vendedor!',
+            description: 'Redirigiendo a tu dashboard...',
+          });
+          navigate('/dashboard-vendedor', { replace: true });
+          return;
+        }
+        
+        // Crear profile
+        await supabase
+          .from('profiles')
+          .upsert({
+            user_id: user.id,
+            full_name: pendingData.fullName,
+            email: pendingData.email,
+            phone: pendingData.phone,
+            city: pendingData.storeCity,
+            department: pendingData.storeDepartment,
+          });
+        
+        // Crear seller
+        const { error: sellerError } = await supabase
+          .from('sellers')
+          .insert({
+            user_id: user.id,
+            store_name: pendingData.storeName,
+            store_city: pendingData.storeCity,
+            store_department: pendingData.storeDepartment,
+          });
+        
+        if (sellerError) throw sellerError;
+        
+        // Asignar rol
+        await supabase.rpc('rpc_request_seller_role');
+        
+        // Limpiar y redirigir
+        localStorage.removeItem(PENDING_REGISTRATION_KEY);
+        
+        toast({
+          title: '¡Registro completado!',
+          description: 'Tu perfil de vendedor ha sido creado.',
+        });
+        
+        navigate('/dashboard-vendedor', { replace: true });
+      } catch (error) {
+        console.error('Error completing registration:', error);
+        toast({
+          title: 'Error al completar registro',
+          description: 'Por favor intenta nuevamente.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsCompletingRegistration(false);
+      }
+    };
+    
+    completePendingRegistration();
+  }, [user, navigate]);
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -64,17 +166,33 @@ export default function RegistroVendedor() {
 
     try {
       // 1. Create user account
-      const { error: signUpError } = await signUp(formData.email, formData.password, {
+      const { error: signUpError, needsEmailConfirmation } = await signUp(formData.email, formData.password, {
         full_name: formData.fullName,
         phone: formData.phone,
       });
 
       if (signUpError) throw signUpError;
 
-      // Wait for auth state to update
-      const { data: { user } } = await supabase.auth.getUser();
+      // CRITICAL: Si requiere confirmación de email, guardar datos y mostrar mensaje
+      if (needsEmailConfirmation) {
+        const pendingData: PendingRegistration = {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          storeName: formData.storeName,
+          storeCity: formData.storeCity,
+          storeDepartment: formData.storeDepartment,
+        };
+        localStorage.setItem(PENDING_REGISTRATION_KEY, JSON.stringify(pendingData));
+        setShowEmailConfirmation(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Si no requiere confirmación, continuar con registro normal
+      const { data: { user: newUser } } = await supabase.auth.getUser();
       
-      if (!user) {
+      if (!newUser) {
         throw new Error('No se pudo crear el usuario');
       }
 
@@ -82,7 +200,7 @@ export default function RegistroVendedor() {
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
-          user_id: user.id,
+          user_id: newUser.id,
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
@@ -96,7 +214,7 @@ export default function RegistroVendedor() {
       const { error: sellerError } = await supabase
         .from('sellers')
         .insert({
-          user_id: user.id,
+          user_id: newUser.id,
           store_name: formData.storeName,
           store_city: formData.storeCity,
           store_department: formData.storeDepartment,
@@ -112,10 +230,10 @@ export default function RegistroVendedor() {
 
       toast({
         title: '¡Registro exitoso!',
-        description: 'Tu cuenta de vendedor ha sido creada. Ahora puedes iniciar sesión.',
+        description: 'Tu cuenta de vendedor ha sido creada.',
       });
 
-      navigate('/login');
+      navigate('/dashboard-vendedor', { replace: true });
     } catch (error: unknown) {
       const err = error as Error;
       toast({
@@ -127,6 +245,76 @@ export default function RegistroVendedor() {
       setIsLoading(false);
     }
   };
+
+  // Estado: Completando registro pendiente
+  if (isCompletingRegistration) {
+    return (
+      <div className="min-h-screen bg-skyworth-dark flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-skyworth-gold mx-auto mb-4" />
+          <p className="text-white">Completando tu registro de vendedor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Estado: Esperando confirmación de email
+  if (showEmailConfirmation) {
+    return (
+      <div className="min-h-screen bg-skyworth-dark flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center px-4 py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md"
+          >
+            <Card className="bg-white/10 backdrop-blur-sm border-skyworth-green/30">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 w-16 h-16 bg-skyworth-green/20 rounded-full flex items-center justify-center">
+                  <Mail className="h-8 w-8 text-skyworth-green" />
+                </div>
+                <CardTitle className="text-2xl font-bold text-white">
+                  Confirma tu correo
+                </CardTitle>
+                <CardDescription className="text-gray-300">
+                  Hemos enviado un enlace de confirmación a <strong className="text-white">{formData.email}</strong>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-skyworth-green/10 border border-skyworth-green/30 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-skyworth-green mt-0.5" />
+                    <div className="text-sm text-gray-300">
+                      <p className="font-medium text-white mb-1">Pasos siguientes:</p>
+                      <ol className="list-decimal list-inside space-y-1">
+                        <li>Revisa tu bandeja de entrada</li>
+                        <li>Haz clic en el enlace de confirmación</li>
+                        <li>Serás redirigido automáticamente</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 text-center">
+                  ¿No recibiste el correo? Revisa tu carpeta de spam o espera unos minutos.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate('/login')}
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                >
+                  Ya confirmé, ir a iniciar sesión
+                </Button>
+              </CardFooter>
+            </Card>
+          </motion.div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-skyworth-dark flex flex-col">
@@ -163,6 +351,7 @@ export default function RegistroVendedor() {
                       value={formData.fullName}
                       onChange={(e) => handleChange('fullName', e.target.value)}
                       required
+                      disabled={isLoading}
                       className="bg-white/10 border-white/20 text-white"
                     />
                   </div>
@@ -174,6 +363,7 @@ export default function RegistroVendedor() {
                       value={formData.phone}
                       onChange={(e) => handleChange('phone', e.target.value)}
                       required
+                      disabled={isLoading}
                       className="bg-white/10 border-white/20 text-white"
                     />
                   </div>
@@ -187,6 +377,7 @@ export default function RegistroVendedor() {
                     value={formData.email}
                     onChange={(e) => handleChange('email', e.target.value)}
                     required
+                    disabled={isLoading}
                     className="bg-white/10 border-white/20 text-white"
                   />
                 </div>
@@ -199,6 +390,7 @@ export default function RegistroVendedor() {
                     value={formData.storeName}
                     onChange={(e) => handleChange('storeName', e.target.value)}
                     required
+                    disabled={isLoading}
                     className="bg-white/10 border-white/20 text-white"
                   />
                 </div>
@@ -211,6 +403,7 @@ export default function RegistroVendedor() {
                       value={formData.storeCity}
                       onChange={(e) => handleChange('storeCity', e.target.value)}
                       required
+                      disabled={isLoading}
                       className="bg-white/10 border-white/20 text-white"
                     />
                   </div>
@@ -219,6 +412,7 @@ export default function RegistroVendedor() {
                     <Select 
                       value={formData.storeDepartment} 
                       onValueChange={(v) => handleChange('storeDepartment', v)}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="bg-white/10 border-white/20 text-white">
                         <SelectValue placeholder="Seleccionar" />
@@ -243,6 +437,7 @@ export default function RegistroVendedor() {
                       onChange={(e) => handleChange('password', e.target.value)}
                       required
                       minLength={6}
+                      disabled={isLoading}
                       className="bg-white/10 border-white/20 text-white"
                     />
                   </div>
@@ -254,6 +449,7 @@ export default function RegistroVendedor() {
                       value={formData.confirmPassword}
                       onChange={(e) => handleChange('confirmPassword', e.target.value)}
                       required
+                      disabled={isLoading}
                       className="bg-white/10 border-white/20 text-white"
                     />
                   </div>
@@ -265,6 +461,7 @@ export default function RegistroVendedor() {
                     id="terms"
                     checked={formData.termsAccepted}
                     onCheckedChange={(checked) => handleChange('termsAccepted', !!checked)}
+                    disabled={isLoading}
                     className="mt-1"
                   />
                   <Label htmlFor="terms" className="text-sm text-gray-300 cursor-pointer">
