@@ -63,6 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // If we previously forced a one-time reload to heal HMR context mismatch,
+    // clear the flag once the provider mounts successfully.
+    try {
+      sessionStorage.removeItem("__AUTHCTX_RELOAD_ONCE__");
+    } catch {
+      // ignore
+    }
+
     // Initialize auth - check for existing session FIRST
     const initializeAuth = async () => {
       try {
@@ -199,8 +207,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
+
+  // In dev (Vite HMR), React Context can temporarily mismatch between Provider/Consumer
+  // after a hot update. Instead of hard-crashing into a blank screen, force a one-time
+  // full reload to restore a consistent module graph.
   if (context === undefined) {
+    if (import.meta.env.DEV) {
+      try {
+        const key = "__AUTHCTX_RELOAD_ONCE__";
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          setTimeout(() => window.location.reload(), 0);
+        }
+      } catch {
+        // ignore
+      }
+
+      // Minimal safe fallback while the reload happens.
+      return {
+        user: null,
+        session: null,
+        loading: true,
+        rolesLoaded: false,
+        roles: [],
+        isAdmin: false,
+        isSeller: false,
+        signIn: async () => ({ error: new Error("Auth inicializando, recargando...") }),
+        signUp: async () => ({ error: new Error("Auth inicializando, recargando...") }),
+        signOut: async () => {},
+        refreshRoles: async () => {},
+      } as AuthContextType;
+    }
+
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
 }
