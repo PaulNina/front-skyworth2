@@ -69,8 +69,8 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Mostrar botón de vendedor solo si NO es admin o si ES seller */}
-            {(!user || isSeller || !isAdmin) && (
+            {/* Mostrar botón de vendedor: no autenticado O es seller (admin sin rol seller NO ve este botón) */}
+            {(!user || isSeller) && (
               <Link to={getSellerLink()} className="hidden sm:block">
                 <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
                   <Store className="w-4 h-4 mr-2" />
@@ -139,8 +139,8 @@ const Header = () => {
                 </Link>
               ))}
               <div className="pt-2 border-t border-border mt-2 space-y-2">
-                {/* Portal vendedor - solo si no es admin o si es seller */}
-                {(!user || isSeller || !isAdmin) && (
+                {/* Portal vendedor - solo si no autenticado o si es seller */}
+                {(!user || isSeller) && (
                   <Link
                     to={getSellerLink()}
                     onClick={() => setIsMenuOpen(false)}
