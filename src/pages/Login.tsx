@@ -43,8 +43,10 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  const [denied, setDenied] = useState<null | 'admin' | 'seller'>(null);
+  const [permissionTimeout, setPermissionTimeout] = useState(false);
   
-  const { signIn, user, isAdmin, isSeller, loading, rolesLoaded, rolesError, refreshRoles } = useAuth();
+  const { signIn, signOut, user, isAdmin, isSeller, loading, rolesLoaded, rolesError, refreshRoles } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,59 +54,74 @@ export default function Login() {
   const searchParams = new URLSearchParams(location.search);
   const redirectParam = searchParams.get('redirect');
   const roleParam = searchParams.get('role');
-  
-  const isAdminContext = roleParam === 'admin' || redirectParam?.startsWith('admin');
-  const isSellerContext = roleParam === 'seller' || redirectParam === 'dashboard-vendedor';
-  
-  // CRITICAL: Decodificar y validar redirect completo
+
+  // CRITICAL: Decodificar/normalizar redirect completo (acepta con o sin /)
   const decodedRedirect = redirectParam ? decodeURIComponent(redirectParam) : null;
-  const targetPath = decodedRedirect ? `/${decodedRedirect}` : null;
-  const safeTarget = targetPath && isValidRedirect(targetPath) ? targetPath : null;
+  const normalizedTarget = decodedRedirect
+    ? (decodedRedirect.startsWith('/') ? decodedRedirect : `/${decodedRedirect}`)
+    : null;
+  const safeTarget = normalizedTarget && isValidRedirect(normalizedTarget) ? normalizedTarget : null;
+
+  const normalizedRedirectForContext = decodedRedirect ? decodedRedirect.replace(/^\//, '') : '';
+  const isAdminContext = roleParam === 'admin' || normalizedRedirectForContext.startsWith('admin');
+  const isSellerContext =
+    roleParam === 'seller' ||
+    normalizedRedirectForContext === 'dashboard-vendedor' ||
+    normalizedRedirectForContext.startsWith('dashboard-vendedor');
 
   // Redirect logic - SOLO cuando roles están cargados sin error
   useEffect(() => {
     // Esperar hasta que loading termine Y roles estén cargados
     if (loading || !rolesLoaded) return;
-    
+
     // Si hay error de roles, NO redirigir - mostrar error
     if (rolesError) return;
-    
-    if (!user) return;
 
-    // Usuario autenticado con roles cargados correctamente
-    
-    // Validar permisos según contexto
+    if (!user) {
+      setDenied(null);
+      return;
+    }
+
+    // Reset timeout/denied al tener roles OK
+    setPermissionTimeout(false);
+
+    // Validar permisos según contexto (SIN loop / SIN redirigir temprano)
     if (isAdminContext && !isAdmin) {
-      toast({
-        title: 'Acceso denegado',
-        description: 'No tienes permisos de administrador',
-        variant: 'destructive',
-      });
-      navigate('/', { replace: true });
+      setDenied('admin');
+      setIsLoading(false);
       return;
     }
-    
+
     if (isSellerContext && !isSeller) {
-      toast({
-        title: 'Acceso denegado',
-        description: 'No tienes perfil de vendedor registrado',
-        variant: 'destructive',
-      });
-      navigate('/', { replace: true });
+      setDenied('seller');
+      setIsLoading(false);
       return;
     }
-    
+
+    setDenied(null);
+
     // CRITICAL: Usar redirect exacto si es válido
     if (safeTarget) {
       navigate(safeTarget, { replace: true });
       return;
     }
-    
+
     // Fallback según rol
     const fallback = getFallbackRoute(isAdmin, isSeller);
     navigate(fallback, { replace: true });
-    
   }, [user, isAdmin, isSeller, loading, rolesLoaded, rolesError, navigate, isAdminContext, isSellerContext, safeTarget]);
+
+  // CRITICAL: evita spinner infinito “Verificando permisos...”
+  useEffect(() => {
+    const shouldWait = hasAttemptedLogin && !!user && (loading || !rolesLoaded) && !rolesError;
+    if (!shouldWait) {
+      setPermissionTimeout(false);
+      return;
+    }
+
+    const t = window.setTimeout(() => setPermissionTimeout(true), 8000);
+    return () => window.clearTimeout(t);
+  }, [hasAttemptedLogin, user, loading, rolesLoaded, rolesError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,8 +219,101 @@ export default function Login() {
     );
   }
 
-  // Estado de carga post-login mientras se cargan roles
+  // Estado: Acceso denegado (sin loop)
+  if (hasAttemptedLogin && user && rolesLoaded && !rolesError && denied) {
+    const isAdminDenied = denied === 'admin';
+
+    return (
+      <div className="min-h-screen bg-skyworth-dark flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+            <Card className="bg-white/10 backdrop-blur-sm border-amber-500/30">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-8 w-8 text-amber-400" />
+                </div>
+                <CardTitle className="text-xl text-white">Acceso denegado</CardTitle>
+                <CardDescription className="text-gray-300">
+                  {isAdminDenied
+                    ? 'Tu cuenta no tiene permisos de administrador.'
+                    : 'Tu cuenta no tiene rol de vendedor.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {!isAdminDenied && (
+                  <Button onClick={() => navigate('/registro-vendedor')} className="w-full btn-cta-primary">
+                    Registrarme como Vendedor
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/', { replace: true })}
+                  className="w-full border-white/20 text-white hover:bg-white/10"
+                >
+                  Ir al inicio
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={async () => {
+                    await signOut();
+                    navigate('/login', { replace: true });
+                  }}
+                  className="w-full text-gray-400 hover:text-white hover:bg-white/10"
+                >
+                  Cerrar sesión
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Estado: carga post-login (roles/auth)
   if (hasAttemptedLogin && user && (!rolesLoaded || loading)) {
+    if (permissionTimeout) {
+      return (
+        <div className="min-h-screen bg-skyworth-dark flex flex-col">
+          <Header />
+          <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+              <Card className="bg-white/10 backdrop-blur-sm border-red-500/30">
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4 w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="h-8 w-8 text-red-400" />
+                  </div>
+                  <CardTitle className="text-xl text-white">Está tardando más de lo normal</CardTitle>
+                  <CardDescription className="text-gray-300">
+                    No se pudieron verificar tus permisos a tiempo. Puede ser un problema temporal de conexión o permisos (RLS).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  <Button onClick={() => refreshRoles()} className="w-full bg-skyworth-gold hover:bg-skyworth-gold/90 text-black">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reintentar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      await signOut();
+                      navigate('/', { replace: true });
+                    }}
+                    className="w-full border-white/20 text-white hover:bg-white/10"
+                  >
+                    Salir
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-skyworth-dark flex flex-col">
         <Header />
