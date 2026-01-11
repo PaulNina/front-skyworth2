@@ -11,7 +11,7 @@
  * - !user → Redirect a login con ruta completa
  * - sin permisos → Redirect a / con mensaje
  */
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, AlertTriangle, RefreshCw, LogOut, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, loading, rolesLoaded, rolesError, isAdmin, isSeller, signOut, refreshRoles } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // ESTADO 1: Cargando auth o roles → Spinner
   if (loading || !rolesLoaded) {
@@ -65,7 +66,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
               variant="outline"
               onClick={async () => {
                 await signOut();
-                window.location.href = '/';
+                navigate('/', { replace: true });
               }}
               className="w-full border-white/20 text-white hover:bg-white/10"
             >
@@ -112,7 +113,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Button 
-              onClick={() => window.location.href = '/'}
+              onClick={() => navigate('/', { replace: true })}
               className="w-full bg-skyworth-gold hover:bg-skyworth-gold/90 text-black"
             >
               <Home className="h-4 w-4 mr-2" />
@@ -122,7 +123,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
               variant="outline"
               onClick={async () => {
                 await signOut();
-                window.location.href = '/';
+                navigate('/', { replace: true });
               }}
               className="w-full border-white/20 text-white hover:bg-white/10"
             >
@@ -151,14 +152,14 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Button 
-              onClick={() => window.location.href = '/registro-vendedor'}
+              onClick={() => navigate('/registro-vendedor')}
               className="w-full btn-cta-primary"
             >
               Registrarme como Vendedor
             </Button>
             <Button 
               variant="outline"
-              onClick={() => window.location.href = '/'}
+              onClick={() => navigate('/', { replace: true })}
               className="w-full border-white/20 text-white hover:bg-white/10"
             >
               <Home className="h-4 w-4 mr-2" />

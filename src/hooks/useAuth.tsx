@@ -6,10 +6,9 @@
  * - rolesError: string cuando hubo error al cargar roles (diferente de "sin permisos")
  * - refreshRoles: permite reintentar carga de roles
  */
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
 
 type UserRole = 'admin' | 'seller' | 'user';
 
@@ -43,41 +42,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [rolesError, setRolesError] = useState<string | null>(null);
   const [roles, setRoles] = useState<UserRole[]>([]);
 
+  const ROLES_TIMEOUT_MS = 8000;
+
   // CRITICAL: fetchRoles retorna { roles, error } para distinguir error de vacío
+  // Incluye timeout para evitar spinners infinitos si hay problemas de red/RLS.
   const fetchRoles = useCallback(async (userId: string): Promise<{ roles: UserRole[]; error: string | null }> => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
+      const { data, error } = await Promise.race([
+        supabase.from('user_roles').select('role').eq('user_id', userId),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), ROLES_TIMEOUT_MS)
+        ),
+      ]);
 
       if (error) {
         console.error('Error fetching roles:', error);
         return { roles: [], error: `Error al cargar permisos: ${error.message}` };
       }
 
-      return { 
-        roles: (data?.map(r => r.role as UserRole)) || [],
-        error: null 
+      return {
+        roles: (data?.map((r) => r.role as UserRole)) || [],
+        error: null,
       };
     } catch (err) {
+      const message =
+        err instanceof Error && err.message === 'timeout'
+          ? 'Tiempo de espera agotado cargando permisos. Reintenta.'
+          : 'Error de conexión al cargar permisos';
+
       console.error('Error in fetchRoles:', err);
-      return { roles: [], error: 'Error de conexión al cargar permisos' };
+      return { roles: [], error: message };
     }
   }, []);
+
+  const rolesRequestIdRef = useRef(0);
+
+  const loadRolesForUser = useCallback(
+    async (userId: string) => {
+      const reqId = ++rolesRequestIdRef.current;
+
+      setRolesLoaded(false);
+      setRolesError(null);
+
+      const result = await fetchRoles(userId);
+
+      // Evitar aplicar respuestas viejas si hubo múltiples requests
+      if (rolesRequestIdRef.current !== reqId) return;
+
+      setRoles(result.roles);
+      setRolesError(result.error);
+      setRolesLoaded(true);
+    },
+    [fetchRoles]
+  );
 
   // refreshRoles: puede ser llamado desde UI para reintentar
   const refreshRoles = useCallback(async () => {
     if (!user) return;
-    
-    setRolesLoaded(false);
-    setRolesError(null);
-    
-    const result = await fetchRoles(user.id);
-    setRoles(result.roles);
-    setRolesError(result.error);
-    setRolesLoaded(true);
-  }, [user, fetchRoles]);
+    await loadRolesForUser(user.id);
+  }, [user, loadRolesForUser]);
 
   useEffect(() => {
     let mounted = true;
@@ -89,67 +112,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore
     }
 
+    // CRITICAL: listener antes de getSession (evita race conditions)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      setLoading(false);
+    });
+
     const initializeAuth = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
+
         if (!mounted) return;
-        
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-
-        if (currentSession?.user) {
-          const result = await fetchRoles(currentSession.user.id);
-          if (mounted) {
-            setRoles(result.roles);
-            setRolesError(result.error);
-            setRolesLoaded(true);
-          }
-        } else {
-          setRolesLoaded(true);
-        }
-
-        if (mounted) {
-          setLoading(false);
-        }
       } catch (error) {
         console.error('Auth initialization error:', error);
         if (mounted) {
-          setLoading(false);
+          setSession(null);
+          setUser(null);
+          setRoles([]);
           setRolesLoaded(true);
           setRolesError('Error al inicializar autenticación');
         }
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        if (!mounted) return;
-
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          setRolesLoaded(false);
-          setRolesError(null);
-          
-          const result = await fetchRoles(newSession.user.id);
-          if (mounted) {
-            setRoles(result.roles);
-            setRolesError(result.error);
-            setRolesLoaded(true);
-          }
-        } else {
-          setRoles([]);
-          setRolesError(null);
-          setRolesLoaded(true);
-        }
-
-        if (loading && mounted) {
-          setLoading(false);
-        }
-      }
-    );
 
     initializeAuth();
 
@@ -157,16 +147,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchRoles]);
+  }, []);
+
+  // CRITICAL: roles se cargan SIEMPRE cuando cambia el userId (evita “se queda colgado”)
+  useEffect(() => {
+    if (!user) {
+      setRoles([]);
+      setRolesError(null);
+      setRolesLoaded(true);
+      return;
+    }
+
+    // Nota: loadRolesForUser maneja rolesLoaded/rolesError internamente
+    void loadRolesForUser(user.id);
+  }, [user?.id, loadRolesForUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setRolesLoaded(false);
     setRolesError(null);
-    
-    const { error } = await supabase.auth.signInWithPassword({
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // CRITICAL: sembrar estado local inmediatamente (evita depender 100% del listener)
+    if (!error) {
+      setSession(data.session ?? null);
+      setUser(data.user ?? data.session?.user ?? null);
+    } else {
+      // Evitar UI colgada si falla el login
+      setRolesLoaded(true);
+    }
+
     return { error: error as Error | null };
   }, []);
 
@@ -228,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
 
-  // HMR recovery for dev
+  // HMR recovery for dev: intentar un reload UNA sola vez; si persiste, fallar explícitamente.
   if (context === undefined) {
     if (import.meta.env.DEV) {
       try {
@@ -236,25 +249,26 @@ export function useAuth() {
         if (!sessionStorage.getItem(key)) {
           sessionStorage.setItem(key, "1");
           setTimeout(() => window.location.reload(), 0);
+
+          // Return temporal mientras recarga
+          return {
+            user: null,
+            session: null,
+            loading: true,
+            rolesLoaded: false,
+            rolesError: null,
+            roles: [],
+            isAdmin: false,
+            isSeller: false,
+            signIn: async () => ({ error: new Error("Auth inicializando...") }),
+            signUp: async () => ({ error: new Error("Auth inicializando...") }),
+            signOut: async () => {},
+            refreshRoles: async () => {},
+          } as AuthContextType;
         }
       } catch {
         // ignore
       }
-
-      return {
-        user: null,
-        session: null,
-        loading: true,
-        rolesLoaded: false,
-        rolesError: null,
-        roles: [],
-        isAdmin: false,
-        isSeller: false,
-        signIn: async () => ({ error: new Error("Auth inicializando...") }),
-        signUp: async () => ({ error: new Error("Auth inicializando...") }),
-        signOut: async () => {},
-        refreshRoles: async () => {},
-      } as AuthContextType;
     }
 
     throw new Error('useAuth must be used within an AuthProvider');
