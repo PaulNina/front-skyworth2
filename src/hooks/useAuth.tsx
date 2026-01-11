@@ -156,9 +156,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setRoles([]);
-    setRolesLoaded(true);
+    try {
+      // Clear state first to prevent UI freeze
+      setRoles([]);
+      setUser(null);
+      setSession(null);
+      setRolesLoaded(true);
+      
+      // Then sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Navigate to home after successful logout
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Force navigation even on error
+      window.location.href = '/';
+    }
   };
 
   const value = {
