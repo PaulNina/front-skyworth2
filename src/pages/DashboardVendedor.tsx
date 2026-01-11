@@ -168,7 +168,7 @@ export default function DashboardVendedor() {
     return (
       <div className="min-h-screen bg-skyworth-dark flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center">
+        <main className="flex-1 flex items-center justify-center pt-24 pb-8">
           <div className="text-center max-w-md px-4">
             <Store className="h-16 w-16 text-skyworth-gold mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-white mb-2">No tienes perfil de vendedor</h1>
@@ -192,7 +192,7 @@ export default function DashboardVendedor() {
     <div className="min-h-screen bg-skyworth-dark flex flex-col">
       <Header />
       
-      <main className="flex-1 py-8">
+      <main className="flex-1 pt-24 pb-8">
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="flex flex-col gap-4 mb-8">
