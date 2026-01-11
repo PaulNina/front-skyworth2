@@ -34,12 +34,33 @@ export default function Login() {
   // Si ya está autenticado, redirigir según rol
   useEffect(() => {
     if (user) {
-      if (isAdminContext && isAdmin) {
-        navigate('/admin', { replace: true });
-      } else if (isSellerContext && isSeller) {
-        navigate('/dashboard-vendedor', { replace: true });
-      } else if (from !== '/login') {
+      // Contexto admin: solo admins pueden ir a /admin
+      if (isAdminContext) {
+        if (isAdmin) {
+          navigate('/admin', { replace: true });
+        } else {
+          // Usuario autenticado pero no es admin, ir a inicio
+          navigate('/', { replace: true });
+        }
+        return;
+      }
+      
+      // Contexto seller: solo sellers pueden ir a /dashboard-vendedor
+      if (isSellerContext) {
+        if (isSeller) {
+          navigate('/dashboard-vendedor', { replace: true });
+        } else {
+          // Usuario autenticado pero no es seller, ir a inicio
+          navigate('/', { replace: true });
+        }
+        return;
+      }
+      
+      // Sin contexto específico, ir a donde se solicitó o inicio
+      if (from !== '/login') {
         navigate(from, { replace: true });
+      } else {
+        navigate('/', { replace: true });
       }
     }
   }, [user, isAdmin, isSeller, isAdminContext, isSellerContext, from, navigate]);
