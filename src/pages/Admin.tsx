@@ -19,10 +19,12 @@ import AdminSellers from '@/components/admin/AdminSellers';
 import AdminDraw from '@/components/admin/AdminDraw';
 import AdminKnowledgeBase from '@/components/admin/AdminKnowledgeBase';
 import AdminSettings from '@/components/admin/AdminSettings';
+import AdminSerialRegistry from '@/components/admin/AdminSerialRegistry';
 
 const menuItems = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { path: '/admin/products', icon: Package, label: 'Productos' },
+  { path: '/admin/serials', icon: FileText, label: 'Seriales TV' },
   { path: '/admin/tickets', icon: Ticket, label: 'Pool Tickets' },
   { path: '/admin/purchases', icon: ShoppingCart, label: 'Compras' },
   { path: '/admin/sellers', icon: Users, label: 'Vendedores' },
@@ -129,6 +131,7 @@ export default function Admin() {
           <Routes>
             <Route index element={<AdminDashboard />} />
             <Route path="products" element={<AdminProducts />} />
+            <Route path="serials" element={<AdminSerialRegistry />} />
             <Route path="tickets" element={<AdminTickets />} />
             <Route path="purchases" element={<AdminPurchases />} />
             <Route path="sellers" element={<AdminSellers />} />
