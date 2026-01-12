@@ -202,15 +202,18 @@ export default function AdminProducts() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ticket_multiplier" className="text-foreground">Multiplicador Tickets</Label>
+                  <Label htmlFor="ticket_multiplier" className="text-foreground">Cupones por compra (1-5)</Label>
                   <Input
                     id="ticket_multiplier"
                     type="number"
+                    min="1"
+                    max="5"
                     value={formData.ticket_multiplier}
                     onChange={(e) => setFormData({ ...formData, ticket_multiplier: e.target.value })}
                     placeholder="1"
                     className="bg-background border-border text-foreground"
                   />
+                  <p className="text-xs text-muted-foreground">Cantidad de cupones que recibe el comprador</p>
                 </div>
               </div>
               <div className="space-y-2">
@@ -253,7 +256,7 @@ export default function AdminProducts() {
                 <TableHead className="text-muted-foreground">Tier</TableHead>
                 <TableHead className="text-muted-foreground">Pulgadas</TableHead>
                 <TableHead className="text-muted-foreground">Puntos</TableHead>
-                <TableHead className="text-muted-foreground">Multiplicador</TableHead>
+                <TableHead className="text-muted-foreground">Cupones</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
               </TableRow>
