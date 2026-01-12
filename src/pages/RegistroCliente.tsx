@@ -205,67 +205,49 @@ const RegistroCliente = () => {
         invoiceUrl = await uploadFile(files.invoice.file, 'invoices');
       }
 
-      // Create purchase record
-      const { data: purchase, error: purchaseError } = await supabase
-        .from('client_purchases')
-        .insert({
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          ci_number: formData.ciNumber,
-          city: formData.city,
-          department: formData.department,
-          birth_date: formData.birthDate,
-          product_id: serialValidation.productId,
-          serial_number: formData.serialNumber.toUpperCase().trim(),
-          invoice_number: formData.invoiceNumber,
-          purchase_date: formData.purchaseDate,
-          ci_front_url: ciFrontUrl,
-          ci_back_url: ciBackUrl,
-          invoice_url: invoiceUrl,
-          terms_accepted: formData.termsAccepted,
-        })
-        .select()
-        .single();
-
-      if (purchaseError) {
-        if (purchaseError.code === '23505') {
-          throw new Error('Esta combinación de número de serie y factura ya fue registrada');
+      // Registrar compra y generar cupones vía RPC (evita problemas de permisos por RLS)
+      const { data: registerData, error: registerError } = await supabase.rpc(
+        'rpc_register_buyer_serial',
+        {
+          p_full_name: formData.fullName,
+          p_ci_number: formData.ciNumber,
+          p_email: formData.email,
+          p_phone: formData.phone,
+          p_city: formData.city,
+          p_department: formData.department,
+          p_birth_date: formData.birthDate,
+          p_invoice_number: formData.invoiceNumber,
+          p_purchase_date: formData.purchaseDate,
+          p_serial_number: formData.serialNumber,
+          p_ci_front_url: ciFrontUrl,
+          p_ci_back_url: ciBackUrl,
+          p_invoice_url: invoiceUrl,
         }
-        throw purchaseError;
+      );
+
+      if (registerError) throw registerError;
+
+      const result = registerData as {
+        success?: boolean;
+        error?: string;
+        purchase_id?: string;
+        coupons?: string[];
+        coupon_count?: number;
+      };
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'No se pudo registrar la compra');
       }
 
-      // Call AI validation Edge Function
-      try {
-        const { data: validationResult, error: validationError } = await supabase.functions.invoke(
-          'process-client-purchase',
-          { body: { purchaseId: purchase.id } }
-        );
+      const coupons = result.coupons || [];
+      setAssignedCoupons(coupons);
 
-        if (!validationError && validationResult) {
-          if (validationResult.iaStatus === 'VALID' && validationResult.couponsAssigned?.length > 0) {
-            setAssignedCoupons(validationResult.couponsAssigned);
-            toast({
-              title: '¡Documentos validados!',
-              description: `Se te asignaron ${validationResult.couponsAssigned.length} cupón(es) para el sorteo.`,
-            });
-          } else if (validationResult.iaStatus === 'INVALID') {
-            toast({
-              title: 'Documentos no válidos',
-              description: 'Por favor revisa tus documentos e intenta nuevamente.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'En revisión',
-              description: 'Tu compra será revisada por nuestro equipo. Te notificaremos pronto.',
-            });
-          }
-        }
-      } catch (fnError) {
-        console.error('Validation function error:', fnError);
-        // Continue even if validation fails - purchase is still registered
-      }
+      toast({
+        title: '¡Registro exitoso!',
+        description: coupons.length
+          ? `Se generaron ${coupons.length} cupón(es) para el sorteo.`
+          : 'Tu compra fue registrada.',
+      });
 
       // Show success modal
       setShowSuccess(true);
