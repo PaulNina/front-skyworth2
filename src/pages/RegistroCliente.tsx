@@ -46,6 +46,15 @@ const RegistroCliente = () => {
     termsAccepted: false,
   });
 
+  const [validatingSerial, setValidatingSerial] = useState(false);
+  const [serialValidation, setSerialValidation] = useState<{
+    valid: boolean;
+    message: string;
+    productId?: string;
+    productName?: string;
+    couponsCount?: number;
+  } | null>(null);
+
   const [files, setFiles] = useState<{
     ciFront: FileUpload;
     ciBack: FileUpload;
@@ -58,10 +67,63 @@ const RegistroCliente = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [assignedTickets, setAssignedTickets] = useState<string[]>([]);
+  const [assignedCoupons, setAssignedCoupons] = useState<string[]>([]);
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Reset serial validation when serial changes
+    if (field === 'serialNumber') {
+      setSerialValidation(null);
+    }
+  };
+
+  // Validate serial number via RPC
+  const validateSerial = async (serial: string) => {
+    if (!serial || serial.length < 5) {
+      setSerialValidation(null);
+      return;
+    }
+
+    setValidatingSerial(true);
+    try {
+      const { data, error } = await supabase.rpc('rpc_validate_serial_v2', {
+        p_serial: serial.toUpperCase().trim(),
+        p_for_type: 'buyer'
+      });
+
+      if (error) throw error;
+
+      const result = data as { 
+        valid: boolean; 
+        reason?: string; 
+        product_id?: string;
+        product_name?: string;
+        coupons_count?: number;
+      };
+
+      setSerialValidation({
+        valid: result.valid,
+        message: result.valid 
+          ? `✓ Serial válido: ${result.product_name} (${result.coupons_count} cupones)`
+          : result.reason || 'Serial no disponible',
+        productId: result.product_id,
+        productName: result.product_name,
+        couponsCount: result.coupons_count,
+      });
+
+      // Auto-select product if valid
+      if (result.valid && result.product_id) {
+        setFormData(prev => ({ ...prev, productId: result.product_id! }));
+      }
+    } catch (err) {
+      console.error('Serial validation error:', err);
+      setSerialValidation({
+        valid: false,
+        message: 'Error al validar serial. Intenta de nuevo.',
+      });
+    } finally {
+      setValidatingSerial(false);
+    }
   };
 
   const handleFileChange = (field: 'ciFront' | 'ciBack' | 'invoice', file: File | null) => {
@@ -180,11 +242,11 @@ const RegistroCliente = () => {
         );
 
         if (!validationError && validationResult) {
-          if (validationResult.iaStatus === 'VALID' && validationResult.ticketsAssigned?.length > 0) {
-            setAssignedTickets(validationResult.ticketsAssigned);
+          if (validationResult.iaStatus === 'VALID' && validationResult.couponsAssigned?.length > 0) {
+            setAssignedCoupons(validationResult.couponsAssigned);
             toast({
               title: '¡Documentos validados!',
-              description: `Se te asignaron ${validationResult.ticketsAssigned.length} ticket(s) para el sorteo.`,
+              description: `Se te asignaron ${validationResult.couponsAssigned.length} cupón(es) para el sorteo.`,
             });
           } else if (validationResult.iaStatus === 'INVALID') {
             toast({
@@ -367,14 +429,19 @@ const RegistroCliente = () => {
                       <SelectContent>
                         {products?.map(product => (
                           <SelectItem key={product.id} value={product.id}>
-                            {product.model_name} - {product.screen_size}" ({product.ticket_multiplier} ticket{product.ticket_multiplier > 1 ? 's' : ''})
+                            {product.model_name} - {product.screen_size}" ({product.coupon_multiplier || 1} cupón{(product.coupon_multiplier || 1) > 1 ? 'es' : ''})
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     {selectedProduct && (
                       <p className="text-sm text-skyworth-gold mt-2">
-                        🎫 Este modelo te da {selectedProduct.ticket_multiplier} ticket{selectedProduct.ticket_multiplier > 1 ? 's' : ''} para el sorteo
+                        🎫 Este modelo te da {selectedProduct.coupon_multiplier || 1} cupón{(selectedProduct.coupon_multiplier || 1) > 1 ? 'es' : ''} para el sorteo
+                      </p>
+                    )}
+                    {serialValidation && (
+                      <p className={`text-sm mt-2 ${serialValidation.valid ? 'text-green-500' : 'text-red-400'}`}>
+                        {serialValidation.message}
                       </p>
                     )}
                   </div>
@@ -384,10 +451,14 @@ const RegistroCliente = () => {
                       id="serialNumber" 
                       value={formData.serialNumber}
                       onChange={(e) => handleChange('serialNumber', e.target.value)}
-                      placeholder="Serie del producto" 
+                      onBlur={() => validateSerial(formData.serialNumber)}
+                      placeholder="Serie del producto (ej: SKW-2026-XXXXX)" 
                       required
-                      className="mt-1" 
+                      className={`mt-1 ${validatingSerial ? 'opacity-70' : ''}`}
                     />
+                    {validatingSerial && (
+                      <p className="text-sm text-muted-foreground mt-1">Validando serial...</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="invoiceNumber" className="text-card-foreground">Número de Factura *</Label>
@@ -504,15 +575,15 @@ const RegistroCliente = () => {
                 Tu compra ha sido registrada exitosamente.
               </p>
               <p>
-                Nuestro equipo validará tus documentos y te notificaremos por WhatsApp y Email cuando tus tickets sean asignados.
+                Nuestro equipo validará tus documentos y te notificaremos por WhatsApp y Email cuando tus cupones sean asignados.
               </p>
-              {assignedTickets.length > 0 && (
+              {assignedCoupons.length > 0 && (
                 <div className="bg-skyworth-gold/20 rounded-lg p-4 mt-4">
-                  <p className="font-bold text-skyworth-gold mb-2">Tus tickets:</p>
+                  <p className="font-bold text-skyworth-gold mb-2">Tus cupones:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {assignedTickets.map(ticket => (
-                      <span key={ticket} className="bg-skyworth-gold text-skyworth-dark px-3 py-1 rounded-full font-mono font-bold">
-                        {ticket}
+                    {assignedCoupons.map(coupon => (
+                      <span key={coupon} className="bg-skyworth-gold text-skyworth-dark px-3 py-1 rounded-full font-mono font-bold">
+                        {coupon}
                       </span>
                     ))}
                   </div>
