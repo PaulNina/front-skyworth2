@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  LayoutDashboard, Package, Ticket, Users, ShoppingCart, 
+  LayoutDashboard, Package, Users, ShoppingCart, 
   Trophy, Settings, Bot, FileText, LogOut, Menu, X,
   ChevronRight, Gift
 } from 'lucide-react';
@@ -13,7 +12,6 @@ import {
 // Admin sub-pages
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AdminProducts from '@/components/admin/AdminProducts';
-import AdminTickets from '@/components/admin/AdminTickets';
 import AdminPurchases from '@/components/admin/AdminPurchases';
 import AdminSellers from '@/components/admin/AdminSellers';
 import AdminDraw from '@/components/admin/AdminDraw';
@@ -27,7 +25,6 @@ const menuItems = [
   { path: '/admin/products', icon: Package, label: 'Productos' },
   { path: '/admin/serials', icon: FileText, label: 'Seriales TV' },
   { path: '/admin/coupons', icon: Gift, label: 'Cupones' },
-  { path: '/admin/tickets', icon: Ticket, label: 'Pool Tickets' },
   { path: '/admin/purchases', icon: ShoppingCart, label: 'Compras' },
   { path: '/admin/sellers', icon: Users, label: 'Vendedores' },
   { path: '/admin/draw', icon: Trophy, label: 'Sorteo' },
@@ -137,7 +134,6 @@ export default function Admin() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="serials" element={<AdminSerialRegistry />} />
             <Route path="coupons" element={<AdminCoupons />} />
-            <Route path="tickets" element={<AdminTickets />} />
             <Route path="purchases" element={<AdminPurchases />} />
             <Route path="sellers" element={<AdminSellers />} />
             <Route path="draw" element={<AdminDraw />} />

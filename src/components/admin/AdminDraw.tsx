@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Trophy, Play, Download, AlertTriangle, CheckCircle, Users, Ticket, Loader2 } from 'lucide-react';
+import { Trophy, Play, Download, AlertTriangle, CheckCircle, Users, Gift, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useCampaign } from '@/hooks/useCampaign';
@@ -58,23 +58,31 @@ export default function AdminDraw() {
     enabled: !!latestExecutedDraw
   });
 
-  // Fetch stats
+  // Fetch stats using COUPONS instead of tickets
   const { data: stats } = useQuery({
     queryKey: ['admin-draw-stats'],
     queryFn: async () => {
       const [
-        { count: ticketsTotal },
-        { count: ticketsAssigned },
-        { count: participants }
+        { count: couponsTotal },
+        { count: couponsBuyer },
+        { count: couponsSeller },
+        { data: uniqueParticipants }
       ] = await Promise.all([
-        supabase.from('ticket_pool').select('*', { count: 'exact', head: true }),
-        supabase.from('ticket_pool').select('*', { count: 'exact', head: true }).eq('is_assigned', true),
-        supabase.from('tickets_assigned').select('owner_email', { count: 'exact', head: true })
+        supabase.from('coupons').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
+        supabase.from('coupons').select('*', { count: 'exact', head: true }).eq('owner_type', 'BUYER').eq('status', 'ACTIVE'),
+        supabase.from('coupons').select('*', { count: 'exact', head: true }).eq('owner_type', 'SELLER').eq('status', 'ACTIVE'),
+        // Count unique participants by email
+        supabase.from('coupons').select('owner_email').eq('status', 'ACTIVE')
       ]);
+
+      // Get unique participants count
+      const uniqueEmails = new Set(uniqueParticipants?.map(c => c.owner_email) || []);
+
       return {
-        ticketsTotal: ticketsTotal || 0,
-        ticketsAssigned: ticketsAssigned || 0,
-        participants: participants || 0
+        couponsTotal: couponsTotal || 0,
+        couponsBuyer: couponsBuyer || 0,
+        couponsSeller: couponsSeller || 0,
+        participants: uniqueEmails.size
       };
     }
   });
@@ -92,7 +100,7 @@ export default function AdminDraw() {
           draw_date: campaign?.draw_date || new Date().toISOString(),
           executed_by: user.id,
           status: 'PENDING',
-          total_tickets: stats?.ticketsAssigned,
+          total_tickets: stats?.couponsTotal, // Using coupons count
           total_participants: stats?.participants
         })
         .select()
@@ -114,6 +122,7 @@ export default function AdminDraw() {
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['admin-draws'] });
       queryClient.invalidateQueries({ queryKey: ['admin-draw-winners'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-draw-stats'] });
       const res = result as { finalists?: number; preselected?: number } | null;
       toast.success(`¡Sorteo ejecutado! ${res?.finalists || 0} finalistas y ${res?.preselected || 0} preseleccionados`);
       setConfirmDialogOpen(false);
@@ -127,14 +136,14 @@ export default function AdminDraw() {
   const exportCSV = () => {
     if (!winners || winners.length === 0) return;
 
-    const headers = ['Posición', 'Tipo', 'Nombre', 'Email', 'Teléfono', 'Ticket ID', 'Premio'];
+    const headers = ['Posición', 'Tipo', 'Nombre', 'Email', 'Teléfono', 'Cupón ID', 'Premio'];
     const rows = winners.map(w => [
       w.position,
       w.winner_type,
       w.owner_name,
       w.owner_email,
       w.owner_phone || '',
-      w.ticket_id,
+      w.ticket_id, // This field references the coupon now
       w.prize_description || ''
     ]);
 
@@ -158,16 +167,38 @@ export default function AdminDraw() {
       </h1>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-muted border-border">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Ticket className="h-8 w-8 text-primary" />
+              <Gift className="h-8 w-8 text-primary" />
               <div>
-                <p className="text-muted-foreground text-sm">Tickets Asignados</p>
+                <p className="text-muted-foreground text-sm">Cupones Totales</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {stats?.ticketsAssigned} / {stats?.ticketsTotal}
+                  {stats?.couponsTotal || 0}
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-muted border-border">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Gift className="h-8 w-8 text-blue-400" />
+              <div>
+                <p className="text-muted-foreground text-sm">Cupones Compradores</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.couponsBuyer || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-muted border-border">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Gift className="h-8 w-8 text-green-400" />
+              <div>
+                <p className="text-muted-foreground text-sm">Cupones Vendedores</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.couponsSeller || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -178,34 +209,36 @@ export default function AdminDraw() {
               <Users className="h-8 w-8 text-secondary" />
               <div>
                 <p className="text-muted-foreground text-sm">Participantes Únicos</p>
-                <p className="text-2xl font-bold text-foreground">{stats?.participants}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-muted border-border">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Trophy className="h-8 w-8 text-yellow-500" />
-              <div>
-                <p className="text-muted-foreground text-sm">Fecha Sorteo</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {campaign?.draw_date 
-                    ? format(new Date(campaign.draw_date), 'd MMM yyyy', { locale: es })
-                    : 'No definida'}
-                </p>
+                <p className="text-2xl font-bold text-foreground">{stats?.participants || 0}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Campaign date */}
+      <Card className="bg-muted border-border">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3">
+            <Trophy className="h-8 w-8 text-yellow-500" />
+            <div>
+              <p className="text-muted-foreground text-sm">Fecha Sorteo</p>
+              <p className="text-2xl font-bold text-foreground">
+                {campaign?.draw_date 
+                  ? format(new Date(campaign.draw_date), 'd MMM yyyy', { locale: es })
+                  : 'No definida'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Execute Draw */}
       <Card className="bg-muted border-border">
         <CardHeader>
           <CardTitle className="text-foreground">Ejecutar Sorteo</CardTitle>
           <CardDescription>
-            Configura y ejecuta el sorteo para seleccionar ganadores
+            Configura y ejecuta el sorteo para seleccionar ganadores entre los cupones emitidos
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -247,7 +280,7 @@ export default function AdminDraw() {
                 <AlertTriangle className="h-4 w-4 text-destructive" />
                 <AlertDescription className="text-foreground">
                   <strong>Advertencia:</strong> El sorteo es irreversible. Una vez ejecutado, no se puede deshacer.
-                  Asegúrate de tener todos los participantes registrados antes de proceder.
+                  Asegúrate de tener todos los participantes y cupones registrados antes de proceder.
                 </AlertDescription>
               </Alert>
 
@@ -255,9 +288,10 @@ export default function AdminDraw() {
                 onClick={() => setConfirmDialogOpen(true)}
                 className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
                 size="lg"
+                disabled={!stats?.couponsTotal}
               >
                 <Play className="h-5 w-5 mr-2" />
-                Ejecutar Sorteo
+                Ejecutar Sorteo ({stats?.couponsTotal || 0} cupones participantes)
               </Button>
             </>
           )}
@@ -349,7 +383,7 @@ export default function AdminDraw() {
                   <TableHead className="text-muted-foreground">Fecha</TableHead>
                   <TableHead className="text-muted-foreground">Estado</TableHead>
                   <TableHead className="text-muted-foreground">Participantes</TableHead>
-                  <TableHead className="text-muted-foreground">Tickets</TableHead>
+                  <TableHead className="text-muted-foreground">Cupones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -386,7 +420,11 @@ export default function AdminDraw() {
             <p className="text-muted-foreground">
               Estás a punto de ejecutar el sorteo con los siguientes parámetros:
             </p>
-            <div className="grid grid-cols-2 gap-4 p-4 bg-background rounded-lg">
+            <div className="grid grid-cols-3 gap-4 p-4 bg-background rounded-lg">
+              <div>
+                <p className="text-muted-foreground text-sm">Cupones</p>
+                <p className="text-foreground font-bold text-xl">{stats?.couponsTotal || 0}</p>
+              </div>
               <div>
                 <p className="text-muted-foreground text-sm">Preseleccionados</p>
                 <p className="text-foreground font-bold text-xl">{preselectedCount}</p>

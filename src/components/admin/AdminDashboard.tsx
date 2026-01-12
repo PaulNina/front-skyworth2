@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, ShoppingCart, Ticket, TrendingUp, Package, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Users, ShoppingCart, Gift, TrendingUp, Package, CheckCircle, Clock, AlertCircle, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCampaign } from '@/hooks/useCampaign';
 import { format, differenceInDays } from 'date-fns';
@@ -17,19 +17,25 @@ export default function AdminDashboard() {
         { count: purchasesCount },
         { count: approvedPurchasesCount },
         { count: pendingPurchasesCount },
-        { count: ticketsAssigned },
-        { count: ticketsTotal },
+        { count: couponsTotal },
+        { count: couponsBuyer },
+        { count: couponsSeller },
         { count: sellersCount },
         { count: salesCount },
+        { count: serialsTotal },
+        { count: serialsRegistered },
         { data: topProducts }
       ] = await Promise.all([
         supabase.from('client_purchases').select('*', { count: 'exact', head: true }),
         supabase.from('client_purchases').select('*', { count: 'exact', head: true }).eq('admin_status', 'APPROVED'),
         supabase.from('client_purchases').select('*', { count: 'exact', head: true }).is('admin_status', null),
-        supabase.from('ticket_pool').select('*', { count: 'exact', head: true }).eq('is_assigned', true),
-        supabase.from('ticket_pool').select('*', { count: 'exact', head: true }),
+        supabase.from('coupons').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
+        supabase.from('coupons').select('*', { count: 'exact', head: true }).eq('owner_type', 'BUYER').eq('status', 'ACTIVE'),
+        supabase.from('coupons').select('*', { count: 'exact', head: true }).eq('owner_type', 'SELLER').eq('status', 'ACTIVE'),
         supabase.from('sellers').select('*', { count: 'exact', head: true }),
         supabase.from('seller_sales').select('*', { count: 'exact', head: true }),
+        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }),
+        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).or('buyer_status.eq.REGISTERED,seller_status.eq.REGISTERED'),
         supabase.from('v_top_products').select('*').limit(5)
       ]);
 
@@ -37,10 +43,13 @@ export default function AdminDashboard() {
         purchases: purchasesCount || 0,
         approvedPurchases: approvedPurchasesCount || 0,
         pendingPurchases: pendingPurchasesCount || 0,
-        ticketsAssigned: ticketsAssigned || 0,
-        ticketsTotal: ticketsTotal || 0,
+        couponsTotal: couponsTotal || 0,
+        couponsBuyer: couponsBuyer || 0,
+        couponsSeller: couponsSeller || 0,
         sellers: sellersCount || 0,
         sales: salesCount || 0,
+        serialsTotal: serialsTotal || 0,
+        serialsRegistered: serialsRegistered || 0,
         topProducts: topProducts || []
       };
     }
@@ -74,7 +83,10 @@ export default function AdminDashboard() {
     { label: 'Compras Registradas', value: stats?.purchases, icon: ShoppingCart, color: 'text-primary' },
     { label: 'Compras Aprobadas', value: stats?.approvedPurchases, icon: CheckCircle, color: 'text-secondary' },
     { label: 'Pendientes Revisión', value: stats?.pendingPurchases, icon: Clock, color: 'text-yellow-400' },
-    { label: 'Tickets Asignados', value: `${stats?.ticketsAssigned}/${stats?.ticketsTotal}`, icon: Ticket, color: 'text-secondary' },
+    { label: 'Cupones Emitidos', value: stats?.couponsTotal, icon: Gift, color: 'text-secondary' },
+    { label: 'Cupones Comprador', value: stats?.couponsBuyer, icon: Gift, color: 'text-blue-400' },
+    { label: 'Cupones Vendedor', value: stats?.couponsSeller, icon: Gift, color: 'text-green-400' },
+    { label: 'Seriales Cargados', value: `${stats?.serialsRegistered}/${stats?.serialsTotal}`, icon: FileText, color: 'text-purple-400' },
     { label: 'Vendedores', value: stats?.sellers, icon: Users, color: 'text-blue-400' },
     { label: 'Ventas Totales', value: stats?.sales, icon: TrendingUp, color: 'text-purple-400' },
     { label: 'Días para Sorteo', value: daysUntilDraw > 0 ? daysUntilDraw : 'HOY', icon: AlertCircle, color: daysUntilDraw <= 7 ? 'text-destructive' : 'text-primary' },
@@ -93,18 +105,18 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {kpiCards.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <Card key={kpi.label} className="bg-muted border-border hover:border-primary/50 transition-colors">
               <CardHeader className="pb-2">
-                <CardTitle className="text-muted-foreground text-sm font-medium">{kpi.label}</CardTitle>
+                <CardTitle className="text-muted-foreground text-xs font-medium">{kpi.label}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-3">
-                  <Icon className={`h-8 w-8 ${kpi.color}`} />
-                  <span className="text-3xl font-bold text-foreground">{kpi.value}</span>
+                <div className="flex items-center gap-2">
+                  <Icon className={`h-6 w-6 ${kpi.color}`} />
+                  <span className="text-2xl font-bold text-foreground">{kpi.value}</span>
                 </div>
               </CardContent>
             </Card>

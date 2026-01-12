@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Medal, Award, Calendar, Users, Ticket, Crown } from 'lucide-react';
+import { Trophy, Medal, Award, Calendar, Users, Gift, Crown } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { format } from 'date-fns';
@@ -15,7 +15,7 @@ interface DrawResult {
   draw_date: string;
   status: string;
   total_participants: number;
-  total_tickets: number;
+  total_tickets: number; // This now represents coupons count
   preselected_count: number;
   finalists_count: number;
 }
@@ -27,9 +27,7 @@ interface Winner {
   winner_type: string;
   position: number | null;
   prize_description: string | null;
-  ticket_pool: {
-    ticket_code: string;
-  };
+  ticket_id: string; // Coupon ID reference
 }
 
 export default function Resultados() {
@@ -63,15 +61,51 @@ export default function Resultados() {
           winner_type,
           position,
           prize_description,
-          ticket_pool:ticket_id (ticket_code)
+          ticket_id
         `)
         .eq('draw_id', latestDraw.id)
         .order('winner_type', { ascending: true })
         .order('position', { ascending: true });
       if (error) throw error;
-      return data as unknown as Winner[];
+      return data as Winner[];
     },
     enabled: !!latestDraw
+  });
+
+  // Fetch coupon codes for winners
+  const { data: couponCodes } = useQuery({
+    queryKey: ['winner-coupon-codes', winners?.map(w => w.ticket_id)],
+    queryFn: async () => {
+      if (!winners || winners.length === 0) return {};
+      const ticketIds = winners.map(w => w.ticket_id).filter(Boolean);
+      
+      // Try to get from coupons table first (new system)
+      const { data: coupons } = await supabase
+        .from('coupons')
+        .select('id, code')
+        .in('id', ticketIds);
+
+      const codeMap: Record<string, string> = {};
+      coupons?.forEach(c => {
+        codeMap[c.id] = c.code;
+      });
+
+      // Fallback to ticket_pool if coupons not found (legacy data)
+      const missingIds = ticketIds.filter(id => !codeMap[id]);
+      if (missingIds.length > 0) {
+        const { data: tickets } = await supabase
+          .from('ticket_pool')
+          .select('id, ticket_code')
+          .in('id', missingIds);
+        
+        tickets?.forEach(t => {
+          codeMap[t.id] = t.ticket_code;
+        });
+      }
+
+      return codeMap;
+    },
+    enabled: !!winners && winners.length > 0
   });
 
   const finalists = winners?.filter(w => w.winner_type === 'FINALIST') || [];
@@ -95,6 +129,10 @@ export default function Resultados() {
       default:
         return <Award className="h-5 w-5 text-skyworth-gold" />;
     }
+  };
+
+  const getCouponCode = (ticketId: string) => {
+    return couponCodes?.[ticketId] || ticketId.slice(0, 8).toUpperCase();
   };
 
   if (loadingDraws) {
@@ -188,8 +226,8 @@ export default function Resultados() {
                       <p className="text-white font-semibold text-2xl">{latestDraw.total_participants}</p>
                     </div>
                     <div>
-                      <Ticket className="h-6 w-6 text-skyworth-gold mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm">Tickets en Juego</p>
+                      <Gift className="h-6 w-6 text-skyworth-gold mx-auto mb-2" />
+                      <p className="text-gray-400 text-sm">Cupones en Juego</p>
                       <p className="text-white font-semibold text-2xl">{latestDraw.total_tickets}</p>
                     </div>
                     <div>
@@ -262,7 +300,7 @@ export default function Resultados() {
                           </div>
                           <div className="text-right">
                             <Badge variant="outline" className="text-skyworth-gold border-skyworth-gold">
-                              {winner.ticket_pool?.ticket_code}
+                              {getCouponCode(winner.ticket_id)}
                             </Badge>
                             {winner.prize_description && (
                               <p className="text-skyworth-gold text-sm mt-1 font-medium">
@@ -315,7 +353,7 @@ export default function Resultados() {
                           <p className="text-gray-500 text-xs truncate">{maskEmail(winner.owner_email)}</p>
                         </div>
                         <Badge variant="outline" className="text-gray-400 border-gray-600 text-xs">
-                          {winner.ticket_pool?.ticket_code}
+                          {getCouponCode(winner.ticket_id)}
                         </Badge>
                       </motion.div>
                     ))}
