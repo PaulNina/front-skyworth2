@@ -351,12 +351,15 @@ export default function AdminSerialRegistry() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-foreground">Producto (opcional)</Label>
-                  <Select value={formData.product_id} onValueChange={handleProductSelect}>
+                  <Select 
+                    value={formData.product_id || "__none__"} 
+                    onValueChange={(v) => v === "__none__" ? setFormData({ ...formData, product_id: '' }) : handleProductSelect(v)}
+                  >
                     <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue placeholder="Seleccionar producto" />
                     </SelectTrigger>
                     <SelectContent className="bg-muted border-border">
-                      <SelectItem value="" className="text-foreground">Sin producto</SelectItem>
+                      <SelectItem value="__none__" className="text-foreground">Sin producto</SelectItem>
                       {products?.map(product => (
                         <SelectItem key={product.id} value={product.id} className="text-foreground">
                           {product.model_name}
