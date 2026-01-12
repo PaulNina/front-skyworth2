@@ -20,7 +20,7 @@ type SerialRegistry = Tables<'tv_serial_registry'> & {
 };
 
 const TIERS = ['BASIC', 'PREMIUM', 'ULTRA'];
-const STATUSES = ['AVAILABLE', 'USED', 'BLOCKED'];
+const STATUSES = ['AVAILABLE', 'BLOCKED']; // status_serial column
 
 export default function AdminSerialRegistry() {
   const queryClient = useQueryClient();
@@ -37,7 +37,7 @@ export default function AdminSerialRegistry() {
     product_id: '',
     tier: 'BASIC',
     ticket_multiplier: 1,
-    status: 'AVAILABLE'
+    status_serial: 'AVAILABLE'
   });
 
   // Fetch serials
@@ -50,7 +50,7 @@ export default function AdminSerialRegistry() {
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status_serial', statusFilter);
       }
       if (tierFilter !== 'all') {
         query = query.eq('tier', tierFilter);
@@ -86,19 +86,22 @@ export default function AdminSerialRegistry() {
       const [
         { count: total },
         { count: available },
-        { count: used },
-        { count: blocked }
+        { count: blocked },
+        { count: buyerRegistered },
+        { count: sellerRegistered }
       ] = await Promise.all([
         supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }),
-        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('status', 'AVAILABLE'),
-        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('status', 'USED'),
-        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('status', 'BLOCKED')
+        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('status_serial', 'AVAILABLE'),
+        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('status_serial', 'BLOCKED'),
+        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('buyer_status', 'REGISTERED'),
+        supabase.from('tv_serial_registry').select('*', { count: 'exact', head: true }).eq('seller_status', 'REGISTERED')
       ]);
       return {
         total: total || 0,
         available: available || 0,
-        used: used || 0,
-        blocked: blocked || 0
+        blocked: blocked || 0,
+        buyerRegistered: buyerRegistered || 0,
+        sellerRegistered: sellerRegistered || 0
       };
     }
   });
@@ -183,7 +186,7 @@ export default function AdminSerialRegistry() {
       product_id: '',
       tier: 'BASIC',
       ticket_multiplier: 1,
-      status: 'AVAILABLE'
+      status_serial: 'AVAILABLE'
     });
   };
 
@@ -194,7 +197,7 @@ export default function AdminSerialRegistry() {
       product_id: serial.product_id || '',
       tier: serial.tier,
       ticket_multiplier: serial.ticket_multiplier,
-      status: serial.status
+      status_serial: serial.status_serial
     });
     setDialogOpen(true);
   };
@@ -206,7 +209,7 @@ export default function AdminSerialRegistry() {
       product_id: formData.product_id || null,
       tier: formData.tier,
       ticket_multiplier: formData.ticket_multiplier,
-      status: formData.status
+      status_serial: formData.status_serial
     });
   };
 
@@ -282,8 +285,6 @@ export default function AdminSerialRegistry() {
     switch (status) {
       case 'AVAILABLE':
         return <Badge className="bg-secondary text-secondary-foreground">Disponible</Badge>;
-      case 'USED':
-        return <Badge variant="outline" className="text-muted-foreground">Usado</Badge>;
       case 'BLOCKED':
         return <Badge variant="destructive">Bloqueado</Badge>;
       default:
@@ -396,7 +397,7 @@ export default function AdminSerialRegistry() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-foreground">Estado</Label>
-                  <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                  <Select value={formData.status_serial} onValueChange={(v) => setFormData({ ...formData, status_serial: v })}>
                     <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
@@ -442,8 +443,16 @@ export default function AdminSerialRegistry() {
         <Card className="bg-muted border-border">
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-muted-foreground text-sm">Usados</p>
-              <p className="text-3xl font-bold text-muted-foreground">{stats?.used || 0}</p>
+              <p className="text-muted-foreground text-sm">Reg. Comprador</p>
+              <p className="text-3xl font-bold text-blue-400">{stats?.buyerRegistered || 0}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-muted border-border">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-muted-foreground text-sm">Reg. Vendedor</p>
+              <p className="text-3xl font-bold text-purple-400">{stats?.sellerRegistered || 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -562,16 +571,17 @@ export default function AdminSerialRegistry() {
                 <TableHead className="text-muted-foreground">Serial</TableHead>
                 <TableHead className="text-muted-foreground">Producto</TableHead>
                 <TableHead className="text-muted-foreground">Tier</TableHead>
-                <TableHead className="text-muted-foreground">Tickets</TableHead>
+                <TableHead className="text-muted-foreground">Cupones</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
-                <TableHead className="text-muted-foreground">Registrado</TableHead>
+                <TableHead className="text-muted-foreground">Comprador</TableHead>
+                <TableHead className="text-muted-foreground">Vendedor</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                   </TableCell>
                 </TableRow>
@@ -582,12 +592,26 @@ export default function AdminSerialRegistry() {
                     <TableCell className="text-foreground">{serial.products?.model_name || '-'}</TableCell>
                     <TableCell>{getTierBadge(serial.tier)}</TableCell>
                     <TableCell className="text-foreground">{serial.ticket_multiplier}x</TableCell>
-                    <TableCell>{getStatusBadge(serial.status)}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {serial.registered_at 
-                        ? format(new Date(serial.registered_at), 'dd/MM/yy')
-                        : '-'
-                      }
+                    <TableCell>{getStatusBadge(serial.status_serial)}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {serial.buyer_status === 'REGISTERED' ? (
+                        <Badge variant="outline" className="text-blue-400 border-blue-400">
+                          {serial.buyer_registered_at 
+                            ? format(new Date(serial.buyer_registered_at), 'dd/MM/yy')
+                            : 'Sí'
+                          }
+                        </Badge>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {serial.seller_status === 'REGISTERED' ? (
+                        <Badge variant="outline" className="text-purple-400 border-purple-400">
+                          {serial.seller_registered_at 
+                            ? format(new Date(serial.seller_registered_at), 'dd/MM/yy')
+                            : 'Sí'
+                          }
+                        </Badge>
+                      ) : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(serial)}>
@@ -601,7 +625,7 @@ export default function AdminSerialRegistry() {
                             deleteMutation.mutate(serial.id);
                           }
                         }}
-                        disabled={serial.status === 'USED'}
+                        disabled={serial.buyer_status === 'REGISTERED' || serial.seller_status === 'REGISTERED'}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -610,7 +634,7 @@ export default function AdminSerialRegistry() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     No hay seriales registrados. Importa un CSV o crea uno manualmente.
                   </TableCell>
                 </TableRow>

@@ -206,6 +206,83 @@ export type Database = {
           },
         ]
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          issued_at: string | null
+          owner_email: string | null
+          owner_name: string | null
+          owner_phone: string | null
+          owner_purchase_id: string | null
+          owner_sale_id: string | null
+          owner_type: string
+          product_id: string | null
+          serial_number: string
+          status: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          issued_at?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_phone?: string | null
+          owner_purchase_id?: string | null
+          owner_sale_id?: string | null
+          owner_type: string
+          product_id?: string | null
+          serial_number: string
+          status?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          issued_at?: string | null
+          owner_email?: string | null
+          owner_name?: string | null
+          owner_phone?: string | null
+          owner_purchase_id?: string | null
+          owner_sale_id?: string | null
+          owner_type?: string
+          product_id?: string | null
+          serial_number?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_owner_purchase_id_fkey"
+            columns: ["owner_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "client_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_owner_sale_id_fkey"
+            columns: ["owner_sale_id"]
+            isOneToOne: false
+            referencedRelation: "seller_sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_top_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       draw_results: {
         Row: {
           created_at: string
@@ -487,6 +564,7 @@ export type Database = {
       }
       products: {
         Row: {
+          coupon_multiplier: number | null
           created_at: string
           description: string | null
           id: string
@@ -500,6 +578,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          coupon_multiplier?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -513,6 +592,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          coupon_multiplier?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -836,42 +916,70 @@ export type Database = {
       }
       tv_serial_registry: {
         Row: {
+          buyer_purchase_id: string | null
+          buyer_registered_at: string | null
+          buyer_status: string | null
           created_at: string
           id: string
           product_id: string | null
           registered_at: string | null
           registered_by_purchase_id: string | null
+          seller_id: string | null
+          seller_registered_at: string | null
+          seller_sale_id: string | null
+          seller_status: string | null
           serial_number: string
-          status: string
+          status_serial: string
           ticket_multiplier: number
           tier: string
           updated_at: string
         }
         Insert: {
+          buyer_purchase_id?: string | null
+          buyer_registered_at?: string | null
+          buyer_status?: string | null
           created_at?: string
           id?: string
           product_id?: string | null
           registered_at?: string | null
           registered_by_purchase_id?: string | null
+          seller_id?: string | null
+          seller_registered_at?: string | null
+          seller_sale_id?: string | null
+          seller_status?: string | null
           serial_number: string
-          status?: string
+          status_serial?: string
           ticket_multiplier?: number
           tier?: string
           updated_at?: string
         }
         Update: {
+          buyer_purchase_id?: string | null
+          buyer_registered_at?: string | null
+          buyer_status?: string | null
           created_at?: string
           id?: string
           product_id?: string | null
           registered_at?: string | null
           registered_by_purchase_id?: string | null
+          seller_id?: string | null
+          seller_registered_at?: string | null
+          seller_sale_id?: string | null
+          seller_status?: string | null
           serial_number?: string
-          status?: string
+          status_serial?: string
           ticket_multiplier?: number
           tier?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tv_serial_registry_buyer_purchase_id_fkey"
+            columns: ["buyer_purchase_id"]
+            isOneToOne: false
+            referencedRelation: "client_purchases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tv_serial_registry_product_id_fkey"
             columns: ["product_id"]
@@ -891,6 +999,34 @@ export type Database = {
             columns: ["registered_by_purchase_id"]
             isOneToOne: false
             referencedRelation: "client_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_serial_registry_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_serial_registry_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "v_seller_ranking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_serial_registry_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "v_seller_ranking_by_city"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_serial_registry_seller_sale_id_fkey"
+            columns: ["seller_sale_id"]
+            isOneToOne: false
+            referencedRelation: "seller_sales"
             referencedColumns: ["id"]
           },
         ]
@@ -955,6 +1091,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_coupon_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1006,6 +1143,35 @@ export type Database = {
           total_sales: number
         }[]
       }
+      rpc_register_buyer_serial: {
+        Args: {
+          p_birth_date: string
+          p_ci_back_url?: string
+          p_ci_front_url?: string
+          p_ci_number: string
+          p_city: string
+          p_department: string
+          p_email: string
+          p_full_name: string
+          p_invoice_number: string
+          p_invoice_url?: string
+          p_phone: string
+          p_purchase_date: string
+          p_serial_number: string
+        }
+        Returns: Json
+      }
+      rpc_register_seller_serial: {
+        Args: {
+          p_client_name: string
+          p_client_phone?: string
+          p_invoice_number?: string
+          p_sale_date?: string
+          p_seller_id: string
+          p_serial_number: string
+        }
+        Returns: Json
+      }
       rpc_request_seller_role: { Args: never; Returns: boolean }
       rpc_run_draw: {
         Args: {
@@ -1016,6 +1182,10 @@ export type Database = {
         Returns: Json
       }
       rpc_validate_serial: { Args: { p_serial: string }; Returns: Json }
+      rpc_validate_serial_v2: {
+        Args: { p_for_type?: string; p_serial: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "seller" | "user"
