@@ -108,35 +108,50 @@ export default function DashboardVendedor() {
     enabled: !!seller,
   });
 
-  // Register sale mutation
+  // Register sale mutation using RPC
   const registerSale = useMutation({
     mutationFn: async () => {
       if (!seller) throw new Error('No seller found');
       
-      const product = products?.find(p => p.id === formData.productId);
-      if (!product) throw new Error('Producto no encontrado');
-
-      const { error } = await supabase
-        .from('seller_sales')
-        .insert({
-          seller_id: seller.id,
-          product_id: formData.productId,
-          serial_number: formData.serialNumber,
-          invoice_number: formData.invoiceNumber,
-          client_name: formData.clientName,
-          client_phone: formData.clientPhone || null,
-          sale_date: formData.saleDate,
-          points_earned: product.points_value,
-        });
+      // Use the new RPC for atomic registration
+      const { data, error } = await supabase.rpc('rpc_register_seller_serial', {
+        p_seller_id: seller.id,
+        p_serial_number: formData.serialNumber.toUpperCase().trim(),
+        p_invoice_number: formData.invoiceNumber || undefined,
+        p_client_name: formData.clientName,
+        p_client_phone: formData.clientPhone || undefined,
+        p_sale_date: formData.saleDate || undefined,
+      });
 
       if (error) {
-        if (error.code === '23505') {
-          throw new Error('Esta venta ya fue registrada');
+        // Handle specific error codes
+        if (error.message.includes('ya registrado por vendedor')) {
+          throw new Error('Este serial ya fue registrado por un vendedor');
+        }
+        if (error.message.includes('no existe')) {
+          throw new Error('El número de serie no existe en el sistema');
+        }
+        if (error.message.includes('BLOQUEADO')) {
+          throw new Error('Este serial está bloqueado y no puede registrarse');
         }
         throw error;
       }
+
+      const result = data as { 
+        success: boolean; 
+        sale_id?: string;
+        points?: number;
+        coupons?: string[];
+        error?: string;
+      };
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al registrar venta');
+      }
+
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['seller-sales'] });
       queryClient.invalidateQueries({ queryKey: ['seller'] });
       setIsDialogOpen(false);
@@ -150,7 +165,7 @@ export default function DashboardVendedor() {
       });
       toast({
         title: '¡Venta registrada!',
-        description: 'Los puntos han sido añadidos a tu cuenta.',
+        description: `Ganaste ${result.points} puntos y ${result.coupons?.length || 1} cupón(es) para el sorteo.`,
       });
     },
     onError: (error: Error) => {
@@ -315,39 +330,26 @@ export default function DashboardVendedor() {
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-white">Modelo de TV *</Label>
-                      <Select value={formData.productId} onValueChange={(v) => handleChange('productId', v)}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products?.map(product => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.model_name} ({product.points_value} pts)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-white">N° Serie del TV *</Label>
+                      <Input
+                        value={formData.serialNumber}
+                        onChange={(e) => handleChange('serialNumber', e.target.value.toUpperCase())}
+                        placeholder="Ingresa el número de serie"
+                        required
+                        className="bg-white/10 border-white/20 text-white font-mono"
+                      />
+                      <p className="text-xs text-gray-400">
+                        El producto se detectará automáticamente del serial
+                      </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-white">N° Serie *</Label>
-                        <Input
-                          value={formData.serialNumber}
-                          onChange={(e) => handleChange('serialNumber', e.target.value)}
-                          required
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-white">N° Factura *</Label>
-                        <Input
-                          value={formData.invoiceNumber}
-                          onChange={(e) => handleChange('invoiceNumber', e.target.value)}
-                          required
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">N° Factura</Label>
+                      <Input
+                        value={formData.invoiceNumber}
+                        onChange={(e) => handleChange('invoiceNumber', e.target.value)}
+                        placeholder="Opcional"
+                        className="bg-white/10 border-white/20 text-white"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-white">Nombre del Cliente *</Label>

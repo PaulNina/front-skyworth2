@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   LayoutDashboard, Package, Ticket, Users, ShoppingCart, 
-  Trophy, Settings, Bell, Bot, FileText, LogOut, Menu, X,
-  ChevronRight
+  Trophy, Settings, Bot, FileText, LogOut, Menu, X,
+  ChevronRight, Gift
 } from 'lucide-react';
 
 // Admin sub-pages
@@ -20,11 +20,13 @@ import AdminDraw from '@/components/admin/AdminDraw';
 import AdminKnowledgeBase from '@/components/admin/AdminKnowledgeBase';
 import AdminSettings from '@/components/admin/AdminSettings';
 import AdminSerialRegistry from '@/components/admin/AdminSerialRegistry';
+import AdminCoupons from '@/components/admin/AdminCoupons';
 
 const menuItems = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { path: '/admin/products', icon: Package, label: 'Productos' },
   { path: '/admin/serials', icon: FileText, label: 'Seriales TV' },
+  { path: '/admin/coupons', icon: Gift, label: 'Cupones' },
   { path: '/admin/tickets', icon: Ticket, label: 'Pool Tickets' },
   { path: '/admin/purchases', icon: ShoppingCart, label: 'Compras' },
   { path: '/admin/sellers', icon: Users, label: 'Vendedores' },
@@ -134,6 +136,7 @@ export default function Admin() {
             <Route index element={<AdminDashboard />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="serials" element={<AdminSerialRegistry />} />
+            <Route path="coupons" element={<AdminCoupons />} />
             <Route path="tickets" element={<AdminTickets />} />
             <Route path="purchases" element={<AdminPurchases />} />
             <Route path="sellers" element={<AdminSellers />} />

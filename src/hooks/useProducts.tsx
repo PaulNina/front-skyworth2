@@ -8,6 +8,7 @@ export interface Product {
   screen_size: number | null;
   tier: string;
   ticket_multiplier: number;
+  coupon_multiplier: number | null;
   points_value: number;
   image_url: string | null;
   is_active: boolean;
