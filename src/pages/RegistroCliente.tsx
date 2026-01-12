@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useProducts } from "@/hooks/useProducts";
+
 
 const DEPARTMENTS = [
   'La Paz', 'Cochabamba', 'Santa Cruz', 'Oruro', 'Potosí', 
@@ -29,7 +29,6 @@ interface FileUpload {
 
 const RegistroCliente = () => {
   const navigate = useNavigate();
-  const { data: products, isLoading: loadingProducts } = useProducts();
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -95,20 +94,21 @@ const RegistroCliente = () => {
 
       const result = data as { 
         valid: boolean; 
-        reason?: string; 
+        error?: string; 
         product_id?: string;
         product_name?: string;
-        coupons_count?: number;
+        coupon_count?: number;
       };
 
+      const couponCount = result.coupon_count || 1;
       setSerialValidation({
         valid: result.valid,
         message: result.valid 
-          ? `✓ Serial válido: ${result.product_name} (${result.coupons_count} cupones)`
-          : result.reason || 'Serial no disponible',
+          ? `✓ Serial válido - ${couponCount} cupón${couponCount > 1 ? 'es' : ''}`
+          : result.error || 'Serial no disponible',
         productId: result.product_id,
         productName: result.product_name,
-        couponsCount: result.coupons_count,
+        couponsCount: couponCount,
       });
 
       // Auto-select product if valid
@@ -164,10 +164,11 @@ const RegistroCliente = () => {
       return;
     }
 
-    if (!formData.productId) {
+    // Validar que el serial esté validado y tenga producto asociado
+    if (!serialValidation?.valid || !serialValidation.productId) {
       toast({
         title: 'Error',
-        description: 'Debes seleccionar un modelo de TV',
+        description: 'Debes ingresar un número de serie válido',
         variant: 'destructive',
       });
       return;
@@ -215,8 +216,8 @@ const RegistroCliente = () => {
           city: formData.city,
           department: formData.department,
           birth_date: formData.birthDate,
-          product_id: formData.productId,
-          serial_number: formData.serialNumber,
+          product_id: serialValidation.productId,
+          serial_number: formData.serialNumber.toUpperCase().trim(),
           invoice_number: formData.invoiceNumber,
           purchase_date: formData.purchaseDate,
           ci_front_url: ciFrontUrl,
@@ -281,7 +282,7 @@ const RegistroCliente = () => {
     }
   };
 
-  const selectedProduct = products?.find(p => p.id === formData.productId);
+  
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -418,46 +419,41 @@ const RegistroCliente = () => {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <Label className="text-card-foreground">Modelo de TV *</Label>
-                    <Select 
-                      value={formData.productId} 
-                      onValueChange={(v) => handleChange('productId', v)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder={loadingProducts ? "Cargando..." : "Seleccionar modelo"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products?.map(product => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.model_name} - {product.screen_size}" ({product.coupon_multiplier || 1} cupón{(product.coupon_multiplier || 1) > 1 ? 'es' : ''})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedProduct && (
-                      <p className="text-sm text-skyworth-gold mt-2">
-                        🎫 Este modelo te da {selectedProduct.coupon_multiplier || 1} cupón{(selectedProduct.coupon_multiplier || 1) > 1 ? 'es' : ''} para el sorteo
-                      </p>
-                    )}
-                    {serialValidation && (
-                      <p className={`text-sm mt-2 ${serialValidation.valid ? 'text-green-500' : 'text-red-400'}`}>
-                        {serialValidation.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
                     <Label htmlFor="serialNumber" className="text-card-foreground">Número de Serie *</Label>
                     <Input 
                       id="serialNumber" 
                       value={formData.serialNumber}
-                      onChange={(e) => handleChange('serialNumber', e.target.value)}
+                      onChange={(e) => handleChange('serialNumber', e.target.value.toUpperCase())}
                       onBlur={() => validateSerial(formData.serialNumber)}
-                      placeholder="Serie del producto (ej: SKW-2026-XXXXX)" 
+                      placeholder="Ingresa el número de serie del TV" 
                       required
                       className={`mt-1 ${validatingSerial ? 'opacity-70' : ''}`}
                     />
                     {validatingSerial && (
-                      <p className="text-sm text-muted-foreground mt-1">Validando serial...</p>
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Validando serial...
+                      </p>
+                    )}
+                    {serialValidation && (
+                      <div className={`mt-2 p-3 rounded-lg ${serialValidation.valid ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
+                        {serialValidation.valid ? (
+                          <div className="space-y-1">
+                            <p className="text-green-500 font-medium flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4" />
+                              Serial válido
+                            </p>
+                            <p className="text-sm text-card-foreground">
+                              <span className="font-semibold">Modelo:</span> {serialValidation.productName}
+                            </p>
+                            <p className="text-sm text-skyworth-gold">
+                              🎫 Recibirás {serialValidation.couponsCount} cupón{(serialValidation.couponsCount || 1) > 1 ? 'es' : ''} para el sorteo
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-red-400">{serialValidation.message}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div>
