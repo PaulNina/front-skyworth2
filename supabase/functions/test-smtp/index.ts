@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,7 +22,6 @@ serve(async (req) => {
     let user = null;
     
     if (authHeader) {
-      // Verify user is admin
       const userClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
       });
@@ -32,9 +32,7 @@ serve(async (req) => {
       }
     }
     
-    // If no authenticated user, try to get from apikey header (service calls)
     if (!user) {
-      // For admin panel, require authentication
       return new Response(
         JSON.stringify({ error: "Usuario no autenticado. Por favor, recarga la página e inicia sesión." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -56,22 +54,23 @@ serve(async (req) => {
       );
     }
 
-    const { testEmail } = await req.json();
+    const { testEmail } = await req.json().catch(() => ({}));
 
-    // Get SMTP settings
+    // Get settings
     const { data: settings } = await serviceClient
       .from("secure_settings")
       .select("setting_key, setting_value")
       .in("setting_key", [
-        "EMAIL_ENABLED", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", 
-        "SMTP_PASS", "SMTP_FROM_EMAIL", "SMTP_FROM_NAME"
+        "EMAIL_ENABLED", "SMTP_FROM", "RESEND_API_KEY",
+        "email_enabled", "smtp_from", "resend_api_key"
       ]);
 
-    const settingsMap = Object.fromEntries(
+    const settingsMap = new Map(
       (settings || []).map((s) => [s.setting_key, s.setting_value])
     );
 
-    if (settingsMap["EMAIL_ENABLED"] !== "true") {
+    const emailEnabled = settingsMap.get("EMAIL_ENABLED") || settingsMap.get("email_enabled");
+    if (emailEnabled !== "true") {
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -81,95 +80,85 @@ serve(async (req) => {
       );
     }
 
-    // Check for Resend API key as alternative
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    
-    if (resendKey) {
-      // Use Resend for sending
-      try {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: settingsMap["SMTP_FROM_EMAIL"] || "test@resend.dev",
-            to: testEmail || user.email,
-            subject: "🎉 Prueba de Email - Skyworth Mundial 2026",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #001F3F;">¡Conexión Exitosa!</h1>
-                <p>Este es un correo de prueba del sistema Skyworth Mundial 2026.</p>
-                <p style="color: #FFD700; font-weight: bold;">La configuración de email está funcionando correctamente.</p>
-              </div>
-            `,
-          }),
-        });
+    // Get Resend API key
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || 
+                         settingsMap.get("RESEND_API_KEY") || 
+                         settingsMap.get("resend_api_key");
 
-        if (response.ok) {
-          const data = await response.json();
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: "Email de prueba enviado correctamente (vía Resend)",
-              emailId: data.id 
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        } else {
-          const errorData = await response.text();
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: `Error de Resend: ${response.status}`,
-              details: errorData 
-            }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch (resendError) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `Error de conexión Resend: ${resendError}` 
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    // If no Resend, check SMTP config
-    const smtpHost = settingsMap["SMTP_HOST"];
-    const smtpPort = settingsMap["SMTP_PORT"];
-    const smtpUser = settingsMap["SMTP_USER"];
-    const smtpPass = settingsMap["SMTP_PASS"];
-
-    if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+    if (!resendApiKey) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Configuración SMTP incompleta. Configure RESEND_API_KEY o complete los datos SMTP." 
+          error: "RESEND_API_KEY no configurada. Deno Edge Functions no pueden usar SMTP directo. Usa Resend (resend.com) para enviar emails.",
+          action: "Registra una cuenta en resend.com, crea una API key, y agrégala en configuración como RESEND_API_KEY"
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Note: Direct SMTP from Deno Edge Functions is limited
-    // In production, would use a service like Resend, SendGrid, etc.
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Configuración SMTP verificada (envío real requiere integración adicional)",
-        config: {
-          host: smtpHost,
-          port: smtpPort,
-          user: smtpUser ? "***configured***" : "missing",
-          from: settingsMap["SMTP_FROM_EMAIL"]
-        }
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const smtpFrom = settingsMap.get("SMTP_FROM") || settingsMap.get("smtp_from") || "onboarding@resend.dev";
+    const recipientEmail = testEmail || user.email;
+
+    console.log(`Testing email with Resend to ${recipientEmail}`);
+
+    // Initialize Resend and send test email
+    const resend = new Resend(resendApiKey);
+
+    try {
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: smtpFrom.includes("@") ? smtpFrom : `Skyworth <${smtpFrom}>`,
+        to: [recipientEmail],
+        subject: "🎉 Prueba de Email - Skyworth Mundial 2026",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #001F3F;">¡Conexión Exitosa!</h1>
+            <p>Este es un correo de prueba del sistema Skyworth Mundial 2026.</p>
+            <p style="color: #FFD700; font-weight: bold; background: #001F3F; padding: 10px; border-radius: 5px;">
+              ✅ La configuración de email está funcionando correctamente.
+            </p>
+            <p style="color: #666; font-size: 12px; margin-top: 20px;">
+              Enviado desde: ${smtpFrom}<br>
+              Fecha: ${new Date().toLocaleString('es-BO')}
+            </p>
+          </div>
+        `,
+      });
+
+      if (emailError) {
+        console.error("Resend error:", emailError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Error de Resend: ${emailError.message}`,
+            details: "Verifica que tu API key sea válida y el dominio esté verificado en resend.com"
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Test email sent:", emailData);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Email de prueba enviado correctamente a ${recipientEmail}`,
+          emailId: emailData?.id 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+
+    } catch (resendError) {
+      console.error("Resend connection error:", resendError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Error de conexión: ${resendError instanceof Error ? resendError.message : 'Error desconocido'}`,
+          details: "Verifica tu conexión y API key de Resend"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
   } catch (error) {
     console.error("Test SMTP error:", error);
     return new Response(

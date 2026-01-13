@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +22,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
     const { to, subject, body, isHtml = false, notificationLogId, templateKey, templateData }: SendEmailRequest = await req.json();
 
@@ -32,27 +36,22 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get SMTP credentials from secure_settings - check BOTH uppercase and lowercase keys
+    // Get settings from secure_settings
     const { data: settings } = await supabase
       .from("secure_settings")
       .select("setting_key, setting_value")
       .in("setting_key", [
-        "smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from", "smtp_tls",
-        "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM", "SMTP_TLS",
-        "EMAIL_ENABLED", "email_enabled"
+        "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM", 
+        "EMAIL_ENABLED", "RESEND_API_KEY",
+        "smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from",
+        "email_enabled", "resend_api_key"
       ]);
 
     const settingsMap = new Map(settings?.map(s => [s.setting_key, s.setting_value]) || []);
     
-    // Check if EMAIL is ENABLED first (check both uppercase and lowercase)
+    // Check if EMAIL is ENABLED first
     const emailEnabled = settingsMap.get("EMAIL_ENABLED") || settingsMap.get("email_enabled");
     if (emailEnabled === "false") {
-      // Update notification log to SKIPPED
       if (notificationLogId) {
         await supabase
           .from("notification_log")
@@ -70,29 +69,35 @@ serve(async (req) => {
       );
     }
 
-    // Get SMTP credentials - prefer UPPERCASE then fall back to lowercase
-    const smtpHost = settingsMap.get("SMTP_HOST") || settingsMap.get("smtp_host");
-    const smtpPort = parseInt(settingsMap.get("SMTP_PORT") || settingsMap.get("smtp_port") || "587");
-    const smtpUser = settingsMap.get("SMTP_USER") || settingsMap.get("smtp_user");
-    const smtpPass = settingsMap.get("SMTP_PASS") || settingsMap.get("smtp_pass");
-    const smtpFrom = settingsMap.get("SMTP_FROM") || settingsMap.get("smtp_from") || smtpUser;
-    const smtpTls = (settingsMap.get("SMTP_TLS") || settingsMap.get("smtp_tls")) !== "false";
+    // Get Resend API key - either from environment or settings
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || 
+                         settingsMap.get("RESEND_API_KEY") || 
+                         settingsMap.get("resend_api_key");
+    
+    // Get SMTP from email
+    const smtpFrom = settingsMap.get("SMTP_FROM") || settingsMap.get("smtp_from") || 
+                     settingsMap.get("SMTP_USER") || settingsMap.get("smtp_user") ||
+                     "onboarding@resend.dev";
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
+    if (!resendApiKey) {
       // Log the failure
       if (notificationLogId) {
         await supabase
           .from("notification_log")
           .update({
             status: "FAILED",
-            error_message: "SMTP credentials not configured",
+            error_message: "RESEND_API_KEY not configured. Please add your Resend API key in admin settings.",
             retry_count: 1
           })
           .eq("id", notificationLogId);
       }
 
+      console.error("RESEND_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "SMTP credentials not configured" }),
+        JSON.stringify({ 
+          error: "Email service not configured. Add RESEND_API_KEY in admin settings or as a secret.",
+          details: "Deno Edge Functions cannot use SMTP directly. Use Resend (resend.com) for email delivery."
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -134,80 +139,60 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Sending email to ${to} via SMTP ${smtpHost}:${smtpPort}`);
-    console.log(`SMTP User: ${smtpUser}, From: ${smtpFrom}, TLS: ${smtpTls}`);
+    console.log(`Sending email to ${to} via Resend`);
 
-    // Create SMTP client
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: smtpTls,
-        auth: {
-          username: smtpUser,
-          password: smtpPass,
-        },
-      },
+    // Initialize Resend client
+    const resend = new Resend(resendApiKey);
+
+    // Send email using Resend
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: smtpFrom.includes("@") ? smtpFrom : `Skyworth <${smtpFrom}>`,
+      to: [to],
+      subject: finalSubject,
+      html: finalIsHtml ? finalBody : `<p>${finalBody.replace(/\n/g, '<br>')}</p>`,
     });
 
-    try {
-      // Send email
-      await client.send({
-        from: smtpFrom,
-        to: to,
-        subject: finalSubject,
-        content: finalIsHtml ? undefined : finalBody,
-        html: finalIsHtml ? finalBody : undefined,
-      });
-
-      await client.close();
-
-      // Update notification log
+    if (emailError) {
+      console.error("Resend error:", emailError);
+      
       if (notificationLogId) {
-        await supabase
-          .from("notification_log")
-          .update({
-            status: "SENT",
-            sent_at: new Date().toISOString()
-          })
-          .eq("id", notificationLogId);
-      }
-
-      console.log(`Email sent successfully to ${to}`);
-
-      return new Response(
-        JSON.stringify({ success: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } catch (smtpError) {
-      await client.close();
-      throw smtpError;
-    }
-  } catch (error) {
-    console.error("Email send error:", error);
-    
-    // Try to update notification log on error
-    try {
-      const body = await req.clone().json().catch(() => ({}));
-      const notificationLogId = body.notificationLogId;
-      if (notificationLogId) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        
         await supabase
           .from("notification_log")
           .update({
             status: "FAILED",
-            error_message: error instanceof Error ? error.message : "Unknown error",
+            error_message: emailError.message || "Failed to send email",
             retry_count: 1
           })
           .eq("id", notificationLogId);
       }
-    } catch (_) {
-      // Ignore update errors
+
+      return new Response(
+        JSON.stringify({ error: emailError.message || "Failed to send email" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
+    console.log("Email sent successfully:", emailData);
+
+    // Update notification log
+    if (notificationLogId) {
+      await supabase
+        .from("notification_log")
+        .update({
+          status: "SENT",
+          sent_at: new Date().toISOString()
+        })
+        .eq("id", notificationLogId);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, emailId: emailData?.id }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error("Email send error:", error);
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Internal error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
