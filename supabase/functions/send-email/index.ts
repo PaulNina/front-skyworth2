@@ -17,6 +17,240 @@ interface SendEmailRequest {
   templateData?: Record<string, string>;
 }
 
+// Professional HTML email template for coupons - Gmail compatible
+function generateCouponEmailHtml(data: {
+  nombre: string;
+  cupones: string;
+  cantidad: string;
+  productName?: string;
+}): string {
+  const couponList = data.cupones.split(", ").map(coupon => `
+    <tr>
+      <td style="padding: 8px 0;">
+        <div style="background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); border-radius: 8px; padding: 16px; text-align: center;">
+          <span style="font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #ffffff; letter-spacing: 2px;">${coupon}</span>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Tus Cupones Skyworth</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+    <tr>
+      <td style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header with gradient -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1565c0 0%, #0d47a1 50%, #1a237e 100%); padding: 40px 30px; text-align: center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">⚽🏆</div>
+                    <h1 style="color: #ffffff; font-size: 28px; margin: 0 0 10px 0; font-weight: bold;">¡FELICITACIONES!</h1>
+                    <p style="color: #bbdefb; font-size: 16px; margin: 0;">Tu registro ha sido aprobado</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Main content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td>
+                    <p style="color: #333333; font-size: 18px; margin: 0 0 20px 0;">
+                      Hola <strong style="color: #1565c0;">${data.nombre}</strong>,
+                    </p>
+                    <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                      ¡Excelente noticia! Tu compra de producto <strong>Skyworth</strong> ha sido verificada exitosamente. 
+                      Has recibido <strong style="color: #1565c0; font-size: 20px;">${data.cantidad} cupón(es)</strong> para participar en el 
+                      <strong>Gran Sorteo Mundial Skyworth 2026</strong>.
+                    </p>
+                  </td>
+                </tr>
+                
+                <!-- Coupon badge -->
+                <tr>
+                  <td style="padding: 20px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #e3f2fd; border-radius: 12px; border: 2px dashed #1565c0;">
+                      <tr>
+                        <td style="padding: 25px;">
+                          <p style="color: #1565c0; font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 0 0 15px 0; text-align: center; letter-spacing: 1px;">
+                            🎫 Tus Cupones para el Sorteo
+                          </p>
+                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            ${couponList}
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <!-- Info box -->
+                <tr>
+                  <td style="padding: 20px 0;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fff8e1; border-radius: 8px; border-left: 4px solid #ffc107;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="color: #f57c00; font-size: 14px; font-weight: bold; margin: 0 0 10px 0;">
+                            📋 IMPORTANTE - GUARDA TUS CUPONES
+                          </p>
+                          <ul style="color: #666666; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                            <li>Estos códigos son únicos e intransferibles</li>
+                            <li>Serán usados para el sorteo del Mundial 2026</li>
+                            <li>Te notificaremos si resultas ganador</li>
+                            <li>Consulta los resultados en nuestra página oficial</li>
+                          </ul>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <!-- CTA Button -->
+                <tr>
+                  <td style="padding: 20px 0; text-align: center;">
+                    <a href="https://skyworth-promo.lovable.app/resultados" style="display: inline-block; background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 50px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(21, 101, 192, 0.4);">
+                      Ver Resultados del Sorteo
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #263238; padding: 30px; text-align: center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td>
+                    <p style="color: #90a4ae; font-size: 14px; margin: 0 0 10px 0;">
+                      <strong style="color: #ffffff;">SKYWORTH Bolivia</strong>
+                    </p>
+                    <p style="color: #78909c; font-size: 12px; margin: 0 0 15px 0;">
+                      Promoción Mundial 2026 ⚽
+                    </p>
+                    <p style="color: #546e7a; font-size: 11px; margin: 0;">
+                      Este correo fue enviado porque registraste una compra Skyworth.<br>
+                      © 2026 Skyworth Bolivia. Todos los derechos reservados.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// HTML template for rejection email
+function generateRejectionEmailHtml(data: {
+  nombre: string;
+  motivo: string;
+}): string {
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado de tu Registro - Skyworth</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+    <tr>
+      <td style="padding: 20px 0;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #455a64 0%, #37474f 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">ℹ️</div>
+              <h1 style="color: #ffffff; font-size: 24px; margin: 0;">Estado de tu Registro</h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="color: #333333; font-size: 18px; margin: 0 0 20px 0;">
+                Hola <strong>${data.nombre}</strong>,
+              </p>
+              <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                Lamentamos informarte que tu registro no pudo ser aprobado en esta ocasión.
+              </p>
+              
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffebee; border-radius: 8px; border-left: 4px solid #ef5350;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #c62828; font-size: 14px; font-weight: bold; margin: 0 0 10px 0;">Motivo:</p>
+                    <p style="color: #666666; font-size: 14px; margin: 0;">${data.motivo}</p>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 25px 0;">
+                Puedes intentar registrarte nuevamente asegurándote de que los documentos sean claros y legibles.
+              </p>
+              
+              <p style="text-align: center; margin: 30px 0 0 0;">
+                <a href="https://skyworth-promo.lovable.app/registro-cliente" style="display: inline-block; background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 50px; font-size: 16px; font-weight: bold;">
+                  Intentar Nuevamente
+                </a>
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #263238; padding: 25px; text-align: center;">
+              <p style="color: #90a4ae; font-size: 14px; margin: 0 0 5px 0;">
+                <strong style="color: #ffffff;">SKYWORTH Bolivia</strong>
+              </p>
+              <p style="color: #546e7a; font-size: 11px; margin: 0;">
+                © 2026 Skyworth Bolivia. Todos los derechos reservados.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -102,12 +336,34 @@ serve(async (req) => {
       );
     }
 
-    // Determine email content - use template if templateKey provided
+    // Determine email content - use built-in templates or custom templates
     let finalSubject = subject;
     let finalBody = body;
     let finalIsHtml = isHtml;
 
-    if (templateKey) {
+    // Check for built-in templates first
+    if (templateKey === "purchase_approved" && templateData) {
+      // Use built-in professional HTML template for approved purchases
+      finalSubject = "🎫 ¡Tus cupones para el Mundial Skyworth 2026!";
+      finalBody = generateCouponEmailHtml({
+        nombre: templateData.nombre || "Cliente",
+        cupones: templateData.cupones || "",
+        cantidad: templateData.cantidad || "0",
+        productName: templateData.producto
+      });
+      finalIsHtml = true;
+      console.log("Using built-in purchase_approved template");
+    } else if (templateKey === "purchase_rejected" && templateData) {
+      // Use built-in rejection template
+      finalSubject = "ℹ️ Estado de tu registro - Skyworth 2026";
+      finalBody = generateRejectionEmailHtml({
+        nombre: templateData.nombre || "Cliente",
+        motivo: templateData.motivo || "Los documentos no pudieron ser validados"
+      });
+      finalIsHtml = true;
+      console.log("Using built-in purchase_rejected template");
+    } else if (templateKey) {
+      // Try to get custom template from database
       const { data: template } = await supabase
         .from("notification_templates")
         .select("*")
