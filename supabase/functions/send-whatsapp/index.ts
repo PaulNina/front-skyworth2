@@ -70,6 +70,8 @@ serve(async (req) => {
     // Get WhatsApp credentials - prefer UPPERCASE then fall back to lowercase
     const whatsappToken = settingsMap.get("WHATSAPP_TOKEN") || settingsMap.get("whatsapp_token");
     const phoneNumberId = settingsMap.get("WHATSAPP_PHONE_ID") || settingsMap.get("whatsapp_phone_number_id");
+    
+    console.log(`WhatsApp config - Token: ${whatsappToken ? 'SET' : 'NOT SET'}, PhoneID: ${phoneNumberId || 'NOT SET'}`);
 
     if (!whatsappToken || !phoneNumberId) {
       // Log the failure

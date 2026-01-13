@@ -326,15 +326,27 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
       .eq("id", purchaseId);
 
     // =====================================================
-    // STEP 5: Send notifications if approved
+    // STEP 5: Send notifications if approved (always try to send)
     // =====================================================
-    if (finalAdminStatus === 'APPROVED' && assignedTickets.length > 0) {
+    // Also check if purchase already has coupons from RPC registration
+    const { data: existingCoupons } = await supabase
+      .from("coupons")
+      .select("code")
+      .eq("owner_purchase_id", purchaseId);
+    
+    const allCoupons = assignedTickets.length > 0 
+      ? assignedTickets 
+      : (existingCoupons?.map(c => c.code) || []);
+    
+    console.log(`Processing notifications for purchase ${purchaseId}, coupons: ${allCoupons.length}`);
+
+    if (finalAdminStatus === 'APPROVED' && allCoupons.length > 0) {
       // Create EMAIL notification log entry
       const { data: emailLog } = await supabase.from("notification_log").insert({
         notification_type: "EMAIL",
         recipient: purchase.email,
         subject: "🎫 ¡Tus cupones para el Mundial Skyworth 2026!",
-        content: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${assignedTickets.length} cupón(es) para el sorteo: ${assignedTickets.join(", ")}. ¡Mucha suerte!`,
+        content: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${allCoupons.length} cupón(es) para el sorteo: ${allCoupons.join(", ")}. ¡Mucha suerte!`,
         status: "PENDING",
         related_purchase_id: purchaseId
       }).select().single();
@@ -342,21 +354,23 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
       // Invoke send-email function
       if (emailLog) {
         try {
-          await supabase.functions.invoke('send-email', {
+          console.log(`Invoking send-email for ${purchase.email}`);
+          const emailResult = await supabase.functions.invoke('send-email', {
             body: {
               to: purchase.email,
               subject: "🎫 ¡Tus cupones para el Mundial Skyworth 2026!",
-              body: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${assignedTickets.length} cupón(es) para el sorteo: ${assignedTickets.join(", ")}. ¡Mucha suerte!`,
+              body: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${allCoupons.length} cupón(es) para el sorteo: ${allCoupons.join(", ")}. ¡Mucha suerte!`,
               isHtml: false,
               notificationLogId: emailLog.id,
               templateKey: "purchase_approved",
               templateData: {
                 nombre: purchase.full_name,
-                cupones: assignedTickets.join(", "),
-                cantidad: String(assignedTickets.length)
+                cupones: allCoupons.join(", "),
+                cantidad: String(allCoupons.length)
               }
             }
           });
+          console.log(`send-email result:`, emailResult);
         } catch (emailError) {
           console.error("Error invoking send-email:", emailError);
         }
@@ -367,7 +381,7 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
         const { data: waLog } = await supabase.from("notification_log").insert({
           notification_type: "WHATSAPP",
           recipient: purchase.phone,
-          content: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${assignedTickets.length} cupón(es): ${assignedTickets.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
+          content: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${allCoupons.length} cupón(es): ${allCoupons.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
           status: "PENDING",
           related_purchase_id: purchaseId
         }).select().single();
@@ -375,19 +389,21 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
         // Invoke send-whatsapp function
         if (waLog) {
           try {
-            await supabase.functions.invoke('send-whatsapp', {
+            console.log(`Invoking send-whatsapp for ${purchase.phone}`);
+            const waResult = await supabase.functions.invoke('send-whatsapp', {
               body: {
                 to: purchase.phone,
-                message: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${assignedTickets.length} cupón(es): ${assignedTickets.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
+                message: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${allCoupons.length} cupón(es): ${allCoupons.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
                 notificationLogId: waLog.id,
                 templateKey: "purchase_approved",
                 templateData: {
                   nombre: purchase.full_name,
-                  cupones: assignedTickets.join(", "),
-                  cantidad: String(assignedTickets.length)
+                  cupones: allCoupons.join(", "),
+                  cantidad: String(allCoupons.length)
                 }
               }
             });
+            console.log(`send-whatsapp result:`, waResult);
           } catch (waError) {
             console.error("Error invoking send-whatsapp:", waError);
           }
