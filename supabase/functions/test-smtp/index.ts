@@ -12,28 +12,31 @@ serve(async (req) => {
   }
 
   try {
-    // Verify admin auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "No autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Verify user is admin
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Verify admin auth
+    const authHeader = req.headers.get("Authorization");
+    let user = null;
     
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
+    if (authHeader) {
+      // Verify user is admin
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      
+      const { data, error: userError } = await userClient.auth.getUser();
+      if (!userError && data?.user) {
+        user = data.user;
+      }
+    }
+    
+    // If no authenticated user, try to get from apikey header (service calls)
+    if (!user) {
+      // For admin panel, require authentication
       return new Response(
-        JSON.stringify({ error: "Usuario no autenticado" }),
+        JSON.stringify({ error: "Usuario no autenticado. Por favor, recarga la página e inicia sesión." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
