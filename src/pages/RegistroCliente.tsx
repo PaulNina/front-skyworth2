@@ -242,6 +242,18 @@ const RegistroCliente = () => {
       const coupons = result.coupons || [];
       setAssignedCoupons(coupons);
 
+      // Invoke process-client-purchase to trigger email/WhatsApp notifications
+      if (result.purchase_id) {
+        try {
+          await supabase.functions.invoke('process-client-purchase', {
+            body: { purchaseId: result.purchase_id }
+          });
+        } catch (notifError) {
+          console.error('Error sending notifications:', notifError);
+          // Don't fail the registration, notifications can be retried
+        }
+      }
+
       toast({
         title: '¡Registro exitoso!',
         description: coupons.length

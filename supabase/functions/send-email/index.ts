@@ -134,6 +134,9 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Sending email to ${to} via SMTP ${smtpHost}:${smtpPort}`);
+    console.log(`SMTP User: ${smtpUser}, From: ${smtpFrom}, TLS: ${smtpTls}`);
+
     // Create SMTP client
     const client = new SMTPClient({
       connection: {
