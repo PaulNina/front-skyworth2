@@ -13,6 +13,8 @@ interface SendEmailRequest {
   body: string;
   isHtml?: boolean;
   notificationLogId?: string;
+  templateKey?: string;
+  templateData?: Record<string, string>;
 }
 
 serve(async (req) => {
@@ -21,11 +23,11 @@ serve(async (req) => {
   }
 
   try {
-    const { to, subject, body, isHtml = false, notificationLogId }: SendEmailRequest = await req.json();
+    const { to, subject, body, isHtml = false, notificationLogId, templateKey, templateData }: SendEmailRequest = await req.json();
 
-    if (!to || !subject || !body) {
+    if (!to) {
       return new Response(
-        JSON.stringify({ error: "to, subject and body are required" }),
+        JSON.stringify({ error: "to is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -35,19 +37,46 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get SMTP credentials from secure_settings
+    // Get SMTP credentials from secure_settings - check BOTH uppercase and lowercase keys
     const { data: settings } = await supabase
       .from("secure_settings")
       .select("setting_key, setting_value")
-      .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from", "smtp_tls"]);
+      .in("setting_key", [
+        "smtp_host", "smtp_port", "smtp_user", "smtp_pass", "smtp_from", "smtp_tls",
+        "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM", "SMTP_TLS",
+        "EMAIL_ENABLED", "email_enabled"
+      ]);
 
     const settingsMap = new Map(settings?.map(s => [s.setting_key, s.setting_value]) || []);
-    const smtpHost = settingsMap.get("smtp_host");
-    const smtpPort = parseInt(settingsMap.get("smtp_port") || "587");
-    const smtpUser = settingsMap.get("smtp_user");
-    const smtpPass = settingsMap.get("smtp_pass");
-    const smtpFrom = settingsMap.get("smtp_from") || smtpUser;
-    const smtpTls = settingsMap.get("smtp_tls") !== "false";
+    
+    // Check if EMAIL is ENABLED first (check both uppercase and lowercase)
+    const emailEnabled = settingsMap.get("EMAIL_ENABLED") || settingsMap.get("email_enabled");
+    if (emailEnabled === "false") {
+      // Update notification log to SKIPPED
+      if (notificationLogId) {
+        await supabase
+          .from("notification_log")
+          .update({
+            status: "SKIPPED",
+            error_message: "Email sending is disabled",
+            sent_at: new Date().toISOString()
+          })
+          .eq("id", notificationLogId);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "Email sending is disabled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get SMTP credentials - prefer UPPERCASE then fall back to lowercase
+    const smtpHost = settingsMap.get("SMTP_HOST") || settingsMap.get("smtp_host");
+    const smtpPort = parseInt(settingsMap.get("SMTP_PORT") || settingsMap.get("smtp_port") || "587");
+    const smtpUser = settingsMap.get("SMTP_USER") || settingsMap.get("smtp_user");
+    const smtpPass = settingsMap.get("SMTP_PASS") || settingsMap.get("smtp_pass");
+    const smtpFrom = settingsMap.get("SMTP_FROM") || settingsMap.get("smtp_from") || smtpUser;
+    const smtpTls = (settingsMap.get("SMTP_TLS") || settingsMap.get("smtp_tls")) !== "false";
 
     if (!smtpHost || !smtpUser || !smtpPass) {
       // Log the failure
@@ -64,6 +93,43 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ error: "SMTP credentials not configured" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Determine email content - use template if templateKey provided
+    let finalSubject = subject;
+    let finalBody = body;
+    let finalIsHtml = isHtml;
+
+    if (templateKey) {
+      const { data: template } = await supabase
+        .from("notification_templates")
+        .select("*")
+        .eq("template_key", templateKey)
+        .eq("channel", "EMAIL")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (template) {
+        finalSubject = template.subject || subject;
+        
+        // Replace placeholders in content
+        let content = template.content_html || template.content_text;
+        if (templateData) {
+          for (const [key, value] of Object.entries(templateData)) {
+            content = content.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+          }
+        }
+        
+        finalBody = content;
+        finalIsHtml = !!template.content_html;
+      }
+    }
+
+    if (!finalSubject || !finalBody) {
+      return new Response(
+        JSON.stringify({ error: "subject and body are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -86,9 +152,9 @@ serve(async (req) => {
       await client.send({
         from: smtpFrom,
         to: to,
-        subject: subject,
-        content: isHtml ? undefined : body,
-        html: isHtml ? body : undefined,
+        subject: finalSubject,
+        content: finalIsHtml ? undefined : finalBody,
+        html: finalIsHtml ? finalBody : undefined,
       });
 
       await client.close();
@@ -104,6 +170,8 @@ serve(async (req) => {
           .eq("id", notificationLogId);
       }
 
+      console.log(`Email sent successfully to ${to}`);
+
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -117,7 +185,8 @@ serve(async (req) => {
     
     // Try to update notification log on error
     try {
-      const { notificationLogId } = await req.json().catch(() => ({}));
+      const body = await req.clone().json().catch(() => ({}));
+      const notificationLogId = body.notificationLogId;
       if (notificationLogId) {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
