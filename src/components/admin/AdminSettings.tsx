@@ -281,10 +281,7 @@ export default function AdminSettings() {
     const [waToken, setWaToken] = useState(getSettingValue('WHATSAPP_TOKEN'));
     const [waPhoneId, setWaPhoneId] = useState(getSettingValue('WHATSAPP_PHONE_ID'));
     const [waEnabled, setWaEnabled] = useState(getSettingValue('WHATSAPP_ENABLED') === 'true');
-    const [smtpHost, setSmtpHost] = useState(getSettingValue('SMTP_HOST'));
-    const [smtpPort, setSmtpPort] = useState(getSettingValue('SMTP_PORT') || '587');
-    const [smtpUser, setSmtpUser] = useState(getSettingValue('SMTP_USER'));
-    const [smtpPass, setSmtpPass] = useState(getSettingValue('SMTP_PASS'));
+    const [resendApiKey, setResendApiKey] = useState(getSettingValue('RESEND_API_KEY'));
     const [smtpFrom, setSmtpFrom] = useState(getSettingValue('SMTP_FROM'));
     const [smtpEnabled, setSmtpEnabled] = useState(getSettingValue('EMAIL_ENABLED') === 'true');
 
@@ -435,63 +432,48 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        {/* SMTP */}
+        {/* Email (Resend) */}
         <Card className="bg-muted border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-foreground flex items-center gap-2">
-                ✉️ Email (SMTP)
+                ✉️ Email (Resend)
               </CardTitle>
               <Badge variant={smtpEnabled ? 'default' : 'secondary'}>
                 {smtpEnabled ? 'Activo' : 'Inactivo'}
               </Badge>
             </div>
+            <CardDescription>
+              Usa <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Resend</a> para enviar emails. 
+              El API Key ya está configurado como secreto del sistema.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-foreground">Host</Label>
+                <Label className="text-foreground">API Key de Resend (opcional - ya configurado)</Label>
                 <Input
-                  value={smtpHost}
-                  onChange={(e) => setSmtpHost(e.target.value)}
-                  placeholder="smtp.gmail.com"
+                  type="password"
+                  value={resendApiKey}
+                  onChange={(e) => setResendApiKey(e.target.value)}
+                  placeholder="re_xxxxxxxxxx (opcional si ya está en secretos)"
                   className="bg-background border-border text-foreground"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Déjalo vacío para usar el secreto del sistema. Solo llena si quieres sobrescribirlo.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label className="text-foreground">Puerto</Label>
-                <Input
-                  value={smtpPort}
-                  onChange={(e) => setSmtpPort(e.target.value)}
-                  placeholder="587"
-                  className="bg-background border-border text-foreground"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">From Email</Label>
+                <Label className="text-foreground">Email Remitente</Label>
                 <Input
                   value={smtpFrom}
                   onChange={(e) => setSmtpFrom(e.target.value)}
                   placeholder="promo@skyworth.com"
                   className="bg-background border-border text-foreground"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-foreground">Usuario</Label>
-                <Input
-                  value={smtpUser}
-                  onChange={(e) => setSmtpUser(e.target.value)}
-                  className="bg-background border-border text-foreground"
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-foreground">Contraseña</Label>
-                <Input
-                  type="password"
-                  value={smtpPass}
-                  onChange={(e) => setSmtpPass(e.target.value)}
-                  className="bg-background border-border text-foreground"
-                />
+                <p className="text-xs text-muted-foreground">
+                  El dominio debe estar verificado en Resend
+                </p>
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -505,14 +487,16 @@ export default function AdminSettings() {
                   <span className="ml-2">Probar</span>
                 </Button>
                 <Button
-                  onClick={() => saveIntegration([
-                    { key: 'SMTP_HOST', value: smtpHost },
-                    { key: 'SMTP_PORT', value: smtpPort },
-                    { key: 'SMTP_USER', value: smtpUser },
-                    { key: 'SMTP_PASS', value: smtpPass },
-                    { key: 'SMTP_FROM', value: smtpFrom },
-                    { key: 'EMAIL_ENABLED', value: smtpEnabled.toString() }
-                  ])}
+                  onClick={() => {
+                    const settings = [
+                      { key: 'SMTP_FROM', value: smtpFrom },
+                      { key: 'EMAIL_ENABLED', value: smtpEnabled.toString() }
+                    ];
+                    if (resendApiKey) {
+                      settings.push({ key: 'RESEND_API_KEY', value: resendApiKey });
+                    }
+                    saveIntegration(settings);
+                  }}
                   className="bg-primary text-primary-foreground"
                 >
                   <Save className="h-4 w-4 mr-2" />
