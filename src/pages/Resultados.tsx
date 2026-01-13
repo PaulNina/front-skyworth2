@@ -139,7 +139,7 @@ export default function Resultados() {
     return (
       <div className="min-h-screen bg-skyworth-dark flex flex-col">
         <Header />
-        <main className="flex-1 py-12">
+        <main className="flex-1 pt-24 pb-12">
           <div className="container mx-auto px-4">
             <div className="space-y-6">
               <Skeleton className="h-12 w-64 mx-auto" />
@@ -160,7 +160,7 @@ export default function Resultados() {
     return (
       <div className="min-h-screen bg-skyworth-dark flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center py-12">
+        <main className="flex-1 flex items-center justify-center pt-24 pb-12">
           <div className="text-center max-w-md px-4">
             <Trophy className="h-20 w-20 text-skyworth-gold mx-auto mb-6 opacity-50" />
             <h1 className="text-3xl font-bold text-white mb-4">
@@ -183,7 +183,7 @@ export default function Resultados() {
     <div className="min-h-screen bg-skyworth-dark flex flex-col">
       <Header />
       
-      <main className="flex-1 py-12">
+      <main className="flex-1 pt-24 pb-12">
         <div className="container mx-auto px-4">
           {/* Header */}
           <motion.div

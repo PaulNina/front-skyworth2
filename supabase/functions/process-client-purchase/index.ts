@@ -326,41 +326,107 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
       .eq("id", purchaseId);
 
     // =====================================================
-    // STEP 5: Log notifications
+    // STEP 5: Send notifications if approved
     // =====================================================
     if (finalAdminStatus === 'APPROVED' && assignedTickets.length > 0) {
-      // Email notification - use uppercase to match CHECK constraint
-      await supabase.from("notification_log").insert({
+      // Create EMAIL notification log entry
+      const { data: emailLog } = await supabase.from("notification_log").insert({
         notification_type: "EMAIL",
         recipient: purchase.email,
-        subject: "🎫 ¡Tus tickets para el Mundial Skyworth 2026!",
-        content: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${assignedTickets.length} ticket(s) para el sorteo: ${assignedTickets.join(", ")}. ¡Mucha suerte!`,
+        subject: "🎫 ¡Tus cupones para el Mundial Skyworth 2026!",
+        content: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${assignedTickets.length} cupón(es) para el sorteo: ${assignedTickets.join(", ")}. ¡Mucha suerte!`,
         status: "PENDING",
         related_purchase_id: purchaseId
-      });
+      }).select().single();
 
-      // WhatsApp notification - use uppercase
+      // Invoke send-email function
+      if (emailLog) {
+        try {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: purchase.email,
+              subject: "🎫 ¡Tus cupones para el Mundial Skyworth 2026!",
+              body: `¡Felicitaciones ${purchase.full_name}! Tu compra ha sido aprobada. Has recibido ${assignedTickets.length} cupón(es) para el sorteo: ${assignedTickets.join(", ")}. ¡Mucha suerte!`,
+              isHtml: false,
+              notificationLogId: emailLog.id,
+              templateKey: "purchase_approved",
+              templateData: {
+                nombre: purchase.full_name,
+                cupones: assignedTickets.join(", "),
+                cantidad: String(assignedTickets.length)
+              }
+            }
+          });
+        } catch (emailError) {
+          console.error("Error invoking send-email:", emailError);
+        }
+      }
+
+      // Create WHATSAPP notification log entry
       if (purchase.phone) {
-        await supabase.from("notification_log").insert({
+        const { data: waLog } = await supabase.from("notification_log").insert({
           notification_type: "WHATSAPP",
           recipient: purchase.phone,
-          content: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${assignedTickets.length} ticket(s): ${assignedTickets.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
+          content: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${assignedTickets.length} cupón(es): ${assignedTickets.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
           status: "PENDING",
           related_purchase_id: purchaseId
-        });
+        }).select().single();
+
+        // Invoke send-whatsapp function
+        if (waLog) {
+          try {
+            await supabase.functions.invoke('send-whatsapp', {
+              body: {
+                to: purchase.phone,
+                message: `🎉 ¡Felicitaciones ${purchase.full_name}! Tu compra Skyworth ha sido aprobada. Tus ${assignedTickets.length} cupón(es): ${assignedTickets.join(", ")}. ¡Buena suerte en el sorteo del Mundial 2026! ⚽🏆`,
+                notificationLogId: waLog.id,
+                templateKey: "purchase_approved",
+                templateData: {
+                  nombre: purchase.full_name,
+                  cupones: assignedTickets.join(", "),
+                  cantidad: String(assignedTickets.length)
+                }
+              }
+            });
+          } catch (waError) {
+            console.error("Error invoking send-whatsapp:", waError);
+          }
+        }
       }
     } else if (finalAdminStatus === 'REJECTED') {
       // Rejection notification
       const rejectionReason = adminNotes || (iaDetail as Record<string, string>).rejection_reason || 'Los documentos no pudieron ser validados';
       
-      await supabase.from("notification_log").insert({
+      const { data: emailLog } = await supabase.from("notification_log").insert({
         notification_type: "EMAIL",
         recipient: purchase.email,
         subject: "ℹ️ Estado de tu registro - Skyworth 2026",
         content: `Hola ${purchase.full_name}, lamentamos informarte que tu registro no pudo ser aprobado. Motivo: ${rejectionReason}. Puedes intentar registrarte nuevamente con documentos válidos.`,
         status: "PENDING",
         related_purchase_id: purchaseId
-      });
+      }).select().single();
+
+      // Invoke send-email for rejection
+      if (emailLog) {
+        try {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: purchase.email,
+              subject: "ℹ️ Estado de tu registro - Skyworth 2026",
+              body: `Hola ${purchase.full_name}, lamentamos informarte que tu registro no pudo ser aprobado. Motivo: ${rejectionReason}. Puedes intentar registrarte nuevamente con documentos válidos.`,
+              isHtml: false,
+              notificationLogId: emailLog.id,
+              templateKey: "purchase_rejected",
+              templateData: {
+                nombre: purchase.full_name,
+                motivo: rejectionReason
+              }
+            }
+          });
+        } catch (emailError) {
+          console.error("Error invoking send-email for rejection:", emailError);
+        }
+      }
     }
 
     return new Response(
@@ -372,7 +438,7 @@ Responde ÚNICAMENTE con un JSON con esta estructura exacta:
         adminStatus: finalAdminStatus,
         ticketsAssigned: assignedTickets,
         message: finalAdminStatus === 'APPROVED'
-          ? `¡Compra aprobada! ${assignedTickets.length} ticket(s) asignados: ${assignedTickets.join(', ')}`
+          ? `¡Compra aprobada! ${assignedTickets.length} cupón(es) asignados: ${assignedTickets.join(', ')}`
           : finalAdminStatus === 'REJECTED'
           ? 'Tu registro no pudo ser aprobado. Revisa el motivo en tu correo.'
           : iaStatus === 'REVIEW'
