@@ -62,21 +62,45 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Pitch Theme Colors
+        pitch: {
+          900: "hsl(var(--pitch-900))",
+          800: "hsl(var(--pitch-800))",
+          700: "hsl(var(--pitch-700))",
+          600: "hsl(var(--pitch-600))",
+          line: "hsl(var(--pitch-line))",
+        },
+        // Accent Colors
+        orange: {
+          hit: "hsl(var(--orange-hit))",
+        },
+        green: {
+          cta: "hsl(var(--green-cta))",
+        },
+        blue: {
+          cta: "hsl(var(--blue-cta))",
+        },
+        ink: "hsl(var(--ink))",
+        // Legacy support
         skyworth: {
-          dark: "hsl(var(--skyworth-dark))",
-          gold: "hsl(var(--skyworth-gold))",
-          green: "hsl(var(--skyworth-green))",
-          "blue-light": "hsl(var(--skyworth-blue-light))",
-          "blue-medium": "hsl(var(--skyworth-blue-medium))",
+          dark: "hsl(var(--pitch-900))",
+          gold: "hsl(var(--orange-hit))",
+          green: "hsl(var(--green-cta))",
+          "blue-light": "hsl(var(--blue-cta))",
+          "blue-medium": "hsl(var(--pitch-800))",
         },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "2xl": "1rem",
+        "3xl": "1.5rem",
+        "4xl": "2rem",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Bebas Neue", "Inter", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
@@ -102,6 +126,10 @@ export default {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        "confetti-fall": {
+          "0%": { transform: "translateY(-100vh) rotate(0deg)", opacity: "1" },
+          "100%": { transform: "translateY(100vh) rotate(720deg)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -109,10 +137,12 @@ export default {
         "fade-in": "fade-in 0.5s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
+        "confetti": "confetti-fall 4s ease-in-out infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "hero-pattern": "linear-gradient(180deg, hsl(210 100% 8%) 0%, hsl(210 100% 12%) 50%, hsl(210 80% 18%) 100%)",
+        "pitch-pattern": "linear-gradient(180deg, hsl(152 67% 6%) 0%, hsl(152 55% 12%) 40%, hsl(152 50% 16%) 100%)",
+        "hero-pattern": "linear-gradient(180deg, hsl(152 67% 6%) 0%, hsl(152 55% 12%) 40%, hsl(152 50% 16%) 100%)",
       },
     },
   },

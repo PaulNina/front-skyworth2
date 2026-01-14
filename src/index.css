@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,87 +6,96 @@
 
 @layer base {
   :root {
-    /* Skyworth 2026 Design System */
-    --background: 210 100% 12%;
+    /* El Sueño del Hincha - Soccer Pitch Theme */
+    --background: 152 67% 8%;
     --foreground: 0 0% 100%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 100% 12%;
+    --card-foreground: 152 67% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 100% 12%;
+    --popover-foreground: 152 67% 8%;
 
-    --primary: 51 100% 50%;
-    --primary-foreground: 210 100% 12%;
+    --primary: 33 100% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 120 100% 50%;
-    --secondary-foreground: 210 100% 12%;
+    --secondary: 142 76% 45%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 50% 20%;
-    --muted-foreground: 210 20% 70%;
+    --muted: 152 40% 15%;
+    --muted-foreground: 152 20% 65%;
 
-    --accent: 51 100% 50%;
-    --accent-foreground: 210 100% 12%;
+    --accent: 33 100% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 50% 25%;
-    --input: 210 50% 25%;
-    --ring: 51 100% 50%;
+    --border: 152 30% 20%;
+    --input: 152 30% 20%;
+    --ring: 142 76% 45%;
 
     --radius: 0.75rem;
 
-    /* Custom Skyworth Colors */
-    --skyworth-dark: 210 100% 12%;
-    --skyworth-gold: 51 100% 50%;
-    --skyworth-green: 120 100% 50%;
-    --skyworth-blue-light: 210 80% 25%;
-    --skyworth-blue-medium: 210 90% 18%;
+    /* Pitch Colors */
+    --pitch-900: 152 67% 8%;
+    --pitch-800: 152 55% 12%;
+    --pitch-700: 152 50% 16%;
+    --pitch-600: 152 45% 22%;
+    --pitch-line: 0 0% 100% / 0.15;
+    
+    /* Accent Colors */
+    --orange-hit: 33 100% 50%;
+    --green-cta: 142 76% 45%;
+    --blue-cta: 200 80% 20%;
+    --ink: 200 50% 8%;
+    
+    /* Glass Effect */
+    --glass: 0 0% 100% / 0.06;
+    --glass-border: 0 0% 100% / 0.12;
 
     /* Gradients */
-    --gradient-hero: linear-gradient(180deg, hsl(210 100% 8%) 0%, hsl(210 100% 12%) 50%, hsl(210 80% 18%) 100%);
-    --gradient-gold: linear-gradient(135deg, hsl(45 100% 60%) 0%, hsl(51 100% 50%) 50%, hsl(40 100% 45%) 100%);
-    --gradient-green: linear-gradient(135deg, hsl(120 100% 40%) 0%, hsl(120 100% 50%) 100%);
-    --gradient-card-blue: linear-gradient(180deg, hsl(210 80% 25%) 0%, hsl(210 90% 18%) 100%);
-    --gradient-card-green: linear-gradient(180deg, hsl(120 70% 35%) 0%, hsl(120 80% 25%) 100%);
+    --gradient-pitch: linear-gradient(180deg, hsl(152 67% 6%) 0%, hsl(152 55% 12%) 40%, hsl(152 50% 16%) 100%);
+    --gradient-orange: linear-gradient(135deg, hsl(40 100% 55%) 0%, hsl(33 100% 50%) 50%, hsl(25 100% 45%) 100%);
+    --gradient-green: linear-gradient(135deg, hsl(142 76% 50%) 0%, hsl(142 76% 45%) 100%);
+    --gradient-glass: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
 
     /* Shadows */
     --shadow-card: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-    --shadow-glow-gold: 0 0 30px rgba(255, 215, 0, 0.3);
-    --shadow-glow-green: 0 0 30px rgba(0, 255, 0, 0.3);
-    --shadow-button: 0 4px 20px rgba(0, 255, 0, 0.4);
+    --shadow-glow-green: 0 0 30px rgba(30, 215, 96, 0.4);
+    --shadow-glow-orange: 0 0 30px rgba(255, 138, 0, 0.4);
+    --shadow-button: 0 4px 20px rgba(30, 215, 96, 0.4);
 
-    --sidebar-background: 210 100% 8%;
+    --sidebar-background: 152 67% 6%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 51 100% 50%;
-    --sidebar-primary-foreground: 210 100% 12%;
-    --sidebar-accent: 210 80% 20%;
+    --sidebar-primary: 33 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 152 50% 18%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 50% 25%;
-    --sidebar-ring: 51 100% 50%;
+    --sidebar-border: 152 30% 20%;
+    --sidebar-ring: 142 76% 45%;
   }
 
   .dark {
-    --background: 210 100% 12%;
+    --background: 152 67% 8%;
     --foreground: 0 0% 100%;
     --card: 0 0% 100%;
-    --card-foreground: 210 100% 12%;
+    --card-foreground: 152 67% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 100% 12%;
-    --primary: 51 100% 50%;
-    --primary-foreground: 210 100% 12%;
-    --secondary: 120 100% 50%;
-    --secondary-foreground: 210 100% 12%;
-    --muted: 210 50% 20%;
-    --muted-foreground: 210 20% 70%;
-    --accent: 51 100% 50%;
-    --accent-foreground: 210 100% 12%;
+    --popover-foreground: 152 67% 8%;
+    --primary: 33 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 142 76% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 152 40% 15%;
+    --muted-foreground: 152 20% 65%;
+    --accent: 33 100% 50%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 50% 25%;
-    --input: 210 50% 25%;
-    --ring: 51 100% 50%;
+    --border: 152 30% 20%;
+    --input: 152 30% 20%;
+    --ring: 142 76% 45%;
   }
 }
 
@@ -96,89 +105,151 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
-    background: var(--gradient-hero);
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
     min-height: 100vh;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight;
+    font-family: 'Bebas Neue', 'Inter', sans-serif;
+    @apply font-bold tracking-wide;
   }
 }
 
 @layer components {
-  .text-gradient-gold {
-    background: var(--gradient-gold);
+  /* Pitch Background */
+  .bg-pitch {
+    background: var(--gradient-pitch);
+    position: relative;
+  }
+  
+  .bg-pitch::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      /* Pitch lines */
+      linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.08) 49.5%, rgba(255,255,255,0.08) 50.5%, transparent 50.5%),
+      /* Grass texture simulation */
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+    pointer-events: none;
+  }
+  
+  .bg-pitch::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.4) 100%);
+    pointer-events: none;
+  }
+
+  /* Glass Panel */
+  .glass-panel {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--glass-border));
+    border-radius: 1.5rem;
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(10px);
+    background: rgba(6, 38, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Text Gradients */
+  .text-gradient-orange {
+    background: var(--gradient-orange);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .bg-gradient-hero {
-    background: var(--gradient-hero);
+  .text-gradient-green {
+    background: var(--gradient-green);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
-  .bg-gradient-gold {
-    background: var(--gradient-gold);
+  /* Legacy support */
+  .text-gradient-gold {
+    background: var(--gradient-orange);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Background Gradients */
+  .bg-gradient-hero {
+    background: var(--gradient-pitch);
+  }
+
+  .bg-gradient-orange {
+    background: var(--gradient-orange);
   }
 
   .bg-gradient-green {
     background: var(--gradient-green);
   }
 
-  .bg-gradient-card-blue {
-    background: var(--gradient-card-blue);
+  .bg-gradient-gold {
+    background: var(--gradient-orange);
   }
 
-  .bg-gradient-card-green {
-    background: var(--gradient-card-green);
+  /* Shadows */
+  .shadow-glow-green {
+    box-shadow: var(--shadow-glow-green);
+  }
+
+  .shadow-glow-orange {
+    box-shadow: var(--shadow-glow-orange);
   }
 
   .shadow-glow-gold {
-    box-shadow: var(--shadow-glow-gold);
-  }
-
-  .shadow-glow-green {
-    box-shadow: var(--shadow-glow-green);
+    box-shadow: var(--shadow-glow-orange);
   }
 
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
 
-  .glass-effect {
-    backdrop-filter: blur(10px);
-    background: rgba(0, 31, 63, 0.8);
-    border: 1px solid rgba(255, 215, 0, 0.2);
-  }
-
+  /* Step Card */
   .step-card {
     @apply relative overflow-hidden rounded-2xl p-6 transition-all duration-300;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .step-card:hover {
     transform: translateY(-4px);
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 215, 0, 0.3);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: hsl(var(--green-cta) / 0.4);
   }
 
   .step-number {
     @apply text-6xl font-black opacity-20 absolute -top-2 -left-2;
-    background: var(--gradient-gold);
+    font-family: 'Bebas Neue', sans-serif;
+    background: var(--gradient-orange);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
+  /* Countdown */
   .countdown-digit {
     @apply flex flex-col items-center justify-center p-4 rounded-xl;
-    background: rgba(255, 215, 0, 0.1);
-    border: 1px solid rgba(255, 215, 0, 0.3);
+    background: rgba(30, 215, 96, 0.1);
+    border: 1px solid rgba(30, 215, 96, 0.3);
     min-width: 80px;
   }
 
+  /* Path Card */
   .path-card {
     @apply relative overflow-hidden rounded-2xl p-8 transition-all duration-500 cursor-pointer;
     border: 2px solid transparent;
@@ -189,49 +260,104 @@
   }
 
   .path-card.blue {
-    background: var(--gradient-card-blue);
+    background: linear-gradient(180deg, hsl(200 80% 18%) 0%, hsl(200 80% 12%) 100%);
   }
 
   .path-card.blue:hover {
-    border-color: hsl(51 100% 50%);
-    box-shadow: 0 20px 60px -20px rgba(0, 100, 200, 0.5), var(--shadow-glow-gold);
+    border-color: hsl(var(--orange-hit));
+    box-shadow: 0 20px 60px -20px rgba(0, 100, 200, 0.5), var(--shadow-glow-orange);
   }
 
   .path-card.green {
-    background: var(--gradient-card-green);
+    background: linear-gradient(180deg, hsl(142 50% 25%) 0%, hsl(142 50% 18%) 100%);
   }
 
   .path-card.green:hover {
-    border-color: hsl(120 100% 50%);
+    border-color: hsl(var(--green-cta));
     box-shadow: 0 20px 60px -20px rgba(0, 200, 0, 0.5), var(--shadow-glow-green);
   }
 
+  /* Primary CTA Button */
   .btn-cta-primary {
     @apply relative px-8 py-4 rounded-xl font-bold text-lg uppercase tracking-wider transition-all duration-300;
+    font-family: 'Bebas Neue', sans-serif;
     background: var(--gradient-green);
-    color: hsl(210 100% 12%);
+    color: white;
     box-shadow: var(--shadow-button);
+    letter-spacing: 0.1em;
   }
 
   .btn-cta-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 30px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 6px 30px rgba(30, 215, 96, 0.5);
   }
 
   .btn-cta-primary:active {
     transform: translateY(0);
   }
 
+  /* Secondary CTA */
+  .btn-cta-secondary {
+    @apply relative px-6 py-3 rounded-xl font-bold text-base uppercase tracking-wider transition-all duration-300;
+    font-family: 'Bebas Neue', sans-serif;
+    background: hsl(var(--blue-cta));
+    color: white;
+    letter-spacing: 0.08em;
+  }
+
+  .btn-cta-secondary:hover {
+    transform: translateY(-2px);
+    background: hsl(200 80% 25%);
+  }
+
+  /* Sport Badge */
+  .sport-badge {
+    @apply inline-flex items-center px-4 py-2 rounded-full font-bold uppercase text-sm tracking-wide;
+    font-family: 'Bebas Neue', sans-serif;
+    background: hsl(var(--blue-cta));
+    color: white;
+    letter-spacing: 0.05em;
+  }
+
+  /* Chat Bubble */
   .chat-bubble {
     @apply p-4 rounded-2xl max-w-[80%] animate-in fade-in slide-in-from-bottom-2 duration-300;
   }
 
   .chat-bubble.user {
-    @apply bg-primary text-primary-foreground ml-auto rounded-br-md;
+    @apply bg-secondary text-secondary-foreground ml-auto rounded-br-md;
   }
 
   .chat-bubble.bot {
     @apply bg-muted text-foreground mr-auto rounded-bl-md;
+  }
+
+  /* Promo Prize Card */
+  .promo-card {
+    @apply bg-white rounded-3xl p-8 shadow-2xl;
+    border: 3px solid hsl(var(--green-cta) / 0.2);
+  }
+
+  /* Confetti Animation */
+  .confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: hsl(var(--green-cta));
+    opacity: 0.6;
+    border-radius: 2px;
+    animation: confetti-fall 4s ease-in-out infinite;
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      transform: translateY(-100vh) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
   }
 }
 
@@ -248,6 +374,14 @@
     animation: countdown-pulse 1s ease-in-out infinite;
   }
 
+  .font-display {
+    font-family: 'Bebas Neue', 'Inter', sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-20px); }
@@ -255,10 +389,10 @@
 
   @keyframes pulse-glow {
     0%, 100% { 
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+      box-shadow: 0 0 20px rgba(30, 215, 96, 0.3);
     }
     50% { 
-      box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+      box-shadow: 0 0 40px rgba(30, 215, 96, 0.6);
     }
   }
 

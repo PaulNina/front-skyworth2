@@ -16,8 +16,8 @@ const PathSelector = () => {
   const paths = [
     {
       id: "cliente",
-      title: "SOY CLIENTE",
-      description: "Compré un TV Skyworth y quiero registrar mi compra para participar en el sorteo.",
+      title: "SOY HINCHA",
+      description: "Compré un TV Skyworth y quiero registrar mi compra para participar en el sorteo del viaje a Monterrey.",
       icon: User,
       link: "/registro-cliente",
       variant: "blue" as const,
@@ -26,7 +26,7 @@ const PathSelector = () => {
     {
       id: "vendedor",
       title: "SOY VENDEDOR",
-      description: "Trabajo en una tienda autorizada y quiero registrar ventas para ganar puntos.",
+      description: "Trabajo en una tienda autorizada y quiero registrar ventas para ganar puntos y premios.",
       icon: Briefcase,
       link: getSellerLink(),
       variant: "green" as const,
@@ -44,11 +44,11 @@ const PathSelector = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-4xl font-black uppercase mb-4">
-            <span className="text-foreground">ELIGE TU</span>{" "}
-            <span className="text-gradient-gold">CAMINO</span>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide mb-4">
+            ELIGE TU{" "}
+            <span className="text-gradient-orange">CAMINO</span>
           </h2>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-xl mx-auto font-body">
             Selecciona tu perfil para comenzar tu registro
           </p>
         </motion.div>
@@ -67,10 +67,10 @@ const PathSelector = () => {
                 <div className={`path-card ${path.variant}`}>
                   {/* Badge */}
                   <div className="mb-4">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-display uppercase tracking-wider ${
                       path.variant === "blue" 
-                        ? "bg-primary/20 text-primary" 
-                        : "bg-secondary/20 text-secondary"
+                        ? "bg-orange-hit/20 text-orange-hit" 
+                        : "bg-green-cta/20 text-green-cta"
                     }`}>
                       {path.badge}
                     </span>
@@ -79,25 +79,25 @@ const PathSelector = () => {
                   {/* Icon */}
                   <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${
                     path.variant === "blue" 
-                      ? "bg-primary/20" 
-                      : "bg-secondary/20"
+                      ? "bg-orange-hit/20" 
+                      : "bg-green-cta/20"
                   }`}>
                     <path.icon className={`w-8 h-8 ${
-                      path.variant === "blue" ? "text-primary" : "text-secondary"
+                      path.variant === "blue" ? "text-orange-hit" : "text-green-cta"
                     }`} />
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-2xl font-black uppercase mb-3 text-foreground">
+                  <h3 className="font-display text-3xl tracking-wide mb-3 text-foreground">
                     {path.title}
                   </h3>
-                  <p className="text-muted-foreground mb-6">
+                  <p className="text-muted-foreground mb-6 font-body">
                     {path.description}
                   </p>
 
                   {/* CTA */}
-                  <div className={`inline-flex items-center gap-2 font-semibold ${
-                    path.variant === "blue" ? "text-primary" : "text-secondary"
+                  <div className={`inline-flex items-center gap-2 font-display text-lg tracking-wide ${
+                    path.variant === "blue" ? "text-orange-hit" : "text-green-cta"
                   }`}>
                     Comenzar
                     <ArrowRight className="w-5 h-5" />

@@ -1,3 +1,4 @@
+import PitchBackground from "@/components/ui/PitchBackground";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/landing/HeroSection";
@@ -8,7 +9,7 @@ import ChatBot from "@/components/chat/ChatBot";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gradient-hero">
+    <PitchBackground showConfetti>
       <Header />
       <main className="pt-16">
         <HeroSection />
@@ -18,7 +19,7 @@ const Index = () => {
       </main>
       <Footer />
       <ChatBot />
-    </div>
+    </PitchBackground>
   );
 };
 

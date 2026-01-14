@@ -1,92 +1,107 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Trophy } from "lucide-react";
 import CountdownTimer from "@/components/ui/CountdownTimer";
+import PromoPrizeCard from "@/components/ui/PromoPrizeCard";
 import { useCampaign } from "@/hooks/useCampaign";
 
 const HeroSection = () => {
-  const { data: campaign, isLoading } = useCampaign();
+  const { data: campaign } = useCampaign();
   
-  // Usar fecha de campaña desde DB, fallback a fecha por defecto
+  // Use campaign draw_date from DB, fallback to default
   const sorteoDate = campaign?.draw_date 
     ? new Date(campaign.draw_date) 
     : new Date("2026-07-15T20:00:00");
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
-      {/* Background decorative elements */}
+      {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-skyworth-blue-light/5 rounded-full blur-3xl" />
+        <div className="absolute top-20 left-10 w-64 h-64 bg-green-cta/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-orange-hit/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto text-center">
-        {/* Trophy Icon */}
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", duration: 0.8 }}
-          className="mb-8"
-        >
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-gold shadow-glow-gold">
-            <Trophy className="w-12 h-12 text-skyworth-dark" />
-          </div>
-        </motion.div>
+      <div className="relative z-10 max-w-7xl mx-auto w-full">
+        {/* Main Hero Content */}
+        <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
+          {/* Left: Title */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center lg:text-left"
+          >
+            {/* Soccer ball icon integrated with title */}
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", duration: 0.8 }}
+              className="mb-6"
+            >
+              <svg viewBox="0 0 100 100" className="w-20 h-20 mx-auto lg:mx-0">
+                <circle cx="50" cy="50" r="48" fill="white" stroke="#1ED760" strokeWidth="2"/>
+                <path d="M50 10 L65 35 L50 50 L35 35 Z" fill="#0B3A2A"/>
+                <path d="M85 40 L75 60 L50 50 L65 35 Z" fill="#0B3A2A"/>
+                <path d="M75 80 L50 90 L50 50 L75 60 Z" fill="#0B3A2A"/>
+                <path d="M25 80 L50 90 L50 50 L25 60 Z" fill="#0B3A2A"/>
+                <path d="M15 40 L25 60 L50 50 L35 35 Z" fill="#0B3A2A"/>
+              </svg>
+            </motion.div>
 
-        {/* Main Title */}
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-4xl md:text-6xl lg:text-7xl font-black uppercase mb-4"
-        >
-          <span className="text-foreground">GANA EL</span>{" "}
-          <span className="text-gradient-gold">MUNDIAL</span>
-        </motion.h1>
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl text-white leading-none tracking-wide mb-2">
+              EL SUEÑO
+            </h1>
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl text-white leading-none tracking-wide mb-4">
+              DEL HINCHA
+            </h1>
+            <h2 className="font-display text-3xl md:text-4xl text-gradient-orange tracking-wider">
+              SKYWORTH
+            </h2>
 
-        <motion.h2
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-3xl md:text-5xl lg:text-6xl font-black uppercase mb-6"
-        >
-          <span className="text-foreground">CON</span>{" "}
-          <span className="text-gradient-gold">SKYWORTH</span>
-        </motion.h2>
+            {/* CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-col sm:flex-row gap-4 mt-8 justify-center lg:justify-start"
+            >
+              <Link to="/registro-cliente" className="btn-cta-primary inline-flex items-center justify-center gap-2">
+                REGISTRAR COMPRA
+              </Link>
+              <Link to="/registro-vendedor" className="btn-cta-secondary inline-flex items-center justify-center gap-2">
+                SOY VENDEDOR
+              </Link>
+            </motion.div>
+          </motion.div>
 
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
-        >
-          Compra tu TV Skyworth, registra tu compra y participa por increíbles premios.
-          ¡Tu boleto al Mundial 2026 te espera!
-        </motion.p>
-
-        {/* CTA Button */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mb-12"
-        >
-          <Link to="/registro-cliente" className="btn-cta-primary inline-flex items-center gap-2">
-            <Trophy className="w-5 h-5" />
-            REGISTRAR COMPRA
-          </Link>
-        </motion.div>
+          {/* Right: Motivational Text */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-center lg:text-right"
+          >
+            <p className="font-display text-3xl md:text-4xl lg:text-5xl text-white leading-tight tracking-wide">
+              ¡UNA PROMO PARA
+              <br />
+              <span className="text-green-cta">HINCHAS</span> QUE NO
+              <br />
+              DEJAN DE <span className="text-orange-hit">CREER!</span>
+            </p>
+          </motion.div>
+        </div>
 
         {/* Countdown */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.5 }}
+          className="mb-16"
         >
           <CountdownTimer targetDate={sorteoDate} />
         </motion.div>
+
+        {/* Prize Card */}
+        <PromoPrizeCard />
       </div>
     </section>
   );

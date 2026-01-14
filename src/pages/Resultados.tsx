@@ -31,6 +31,20 @@ interface Winner {
 }
 
 export default function Resultados() {
+  // Fetch campaign settings for draw date
+  const { data: campaign } = useQuery({
+    queryKey: ['campaign-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('campaign_settings')
+        .select('*')
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Fetch executed draws
   const { data: draws, isLoading: loadingDraws } = useQuery({
     queryKey: ['public-draw-results'],
@@ -156,21 +170,26 @@ export default function Resultados() {
     );
   }
 
+  // Format draw date from campaign settings
+  const drawDateFormatted = campaign?.draw_date 
+    ? format(new Date(campaign.draw_date), "d 'de' MMMM 'de' yyyy", { locale: es })
+    : 'Próximamente';
+
   if (!draws || draws.length === 0) {
     return (
-      <div className="min-h-screen bg-skyworth-dark flex flex-col">
+      <div className="min-h-screen bg-pitch-900 flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center pt-24 pb-12">
           <div className="text-center max-w-md px-4">
-            <Trophy className="h-20 w-20 text-skyworth-gold mx-auto mb-6 opacity-50" />
-            <h1 className="text-3xl font-bold text-white mb-4">
+            <Trophy className="h-20 w-20 text-orange-hit mx-auto mb-6 opacity-50" />
+            <h1 className="font-display text-4xl text-white mb-4 tracking-wide">
               Sorteo Pendiente
             </h1>
             <p className="text-gray-400 text-lg">
               Aún no se ha realizado el sorteo. ¡Mantente atento a los resultados!
             </p>
-            <p className="text-skyworth-gold mt-4 font-medium">
-              Fecha del sorteo: 15 de Julio de 2026
+            <p className="text-green-cta mt-4 font-display text-xl tracking-wide">
+              Fecha del sorteo: {drawDateFormatted}
             </p>
           </div>
         </main>
@@ -180,7 +199,7 @@ export default function Resultados() {
   }
 
   return (
-    <div className="min-h-screen bg-skyworth-dark flex flex-col">
+    <div className="min-h-screen bg-pitch-900 flex flex-col">
       <Header />
       
       <main className="flex-1 pt-24 pb-12">
@@ -191,14 +210,14 @@ export default function Resultados() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-skyworth-gold to-yellow-600 rounded-full mb-6">
-              <Trophy className="h-10 w-10 text-skyworth-dark" />
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-green rounded-full mb-6 shadow-glow-green">
+              <Trophy className="h-10 w-10 text-white" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Resultados del <span className="text-skyworth-gold">Sorteo</span>
+            <h1 className="font-display text-5xl md:text-6xl text-white mb-4 tracking-wide">
+              Resultados del <span className="text-gradient-green">Sorteo</span>
             </h1>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              ¡Felicitaciones a todos los ganadores de la campaña "Gana el Mundial con Skyworth 2026"!
+              ¡Felicitaciones a todos los ganadores de "El Sueño del Hincha - Skyworth"!
             </p>
           </motion.div>
 

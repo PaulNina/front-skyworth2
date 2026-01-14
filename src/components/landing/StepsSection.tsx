@@ -18,7 +18,7 @@ const StepsSection = () => {
     {
       number: "03",
       title: "PARTICIPA",
-      description: "Recibe tus tickets únicos y prepárate para ganar el viaje al Mundial 2026.",
+      description: "Recibe tus cupones únicos y prepárate para viajar a Monterrey con La Verde.",
       icon: Ticket,
     },
   ];
@@ -26,7 +26,7 @@ const StepsSection = () => {
   return (
     <section className="py-20 px-4 relative">
       {/* Background accent */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-skyworth-blue-light/5 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-cta/5 to-transparent" />
 
       <div className="max-w-6xl mx-auto relative z-10">
         {/* Section Title */}
@@ -36,11 +36,11 @@ const StepsSection = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-4xl font-black uppercase mb-4">
-            <span className="text-foreground">LA TÁCTICA PARA</span>{" "}
-            <span className="text-gradient-gold">GANAR</span>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-white tracking-wide mb-4">
+            LA TÁCTICA PARA{" "}
+            <span className="text-gradient-green">GANAR</span>
           </h2>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-xl mx-auto font-body">
             Sigue estos 3 simples pasos y conviértete en un ganador
           </p>
         </motion.div>
@@ -60,21 +60,21 @@ const StepsSection = () => {
               <span className="step-number">{step.number}</span>
 
               {/* Icon */}
-              <div className="relative z-10 w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
-                <step.icon className="w-7 h-7 text-primary" />
+              <div className="relative z-10 w-14 h-14 rounded-xl bg-green-cta/20 flex items-center justify-center mb-6 group-hover:bg-green-cta/30 transition-colors">
+                <step.icon className="w-7 h-7 text-green-cta" />
               </div>
 
               {/* Content */}
-              <h3 className="relative z-10 text-xl font-bold uppercase mb-3 text-foreground">
+              <h3 className="relative z-10 font-display text-2xl tracking-wide mb-3 text-foreground">
                 {step.title}
               </h3>
-              <p className="relative z-10 text-muted-foreground text-sm leading-relaxed">
+              <p className="relative z-10 text-muted-foreground text-sm leading-relaxed font-body">
                 {step.description}
               </p>
 
               {/* Decorative line */}
               {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-1/2 -right-4 lg:-right-5 w-8 lg:w-10 h-0.5 bg-gradient-to-r from-primary/50 to-transparent" />
+                <div className="hidden md:block absolute top-1/2 -right-4 lg:-right-5 w-8 lg:w-10 h-0.5 bg-gradient-to-r from-green-cta/50 to-transparent" />
               )}
             </motion.div>
           ))}
