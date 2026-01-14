@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Menu, X, User, LayoutDashboard, LogOut, Store, Shield } from "lucide-react";
+import { Menu, X, User, LayoutDashboard, LogOut, Store, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Seller link - solo para vendedores o usuarios no autenticados
   const getSellerLink = () => {
     if (user && isSeller) {
       return "/dashboard-vendedor";
@@ -41,12 +40,15 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center">
-              <Trophy className="w-5 h-5 text-skyworth-dark" />
+            <div className="w-10 h-10 rounded-full bg-gradient-green flex items-center justify-center shadow-glow-green">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M12 2 L15 8 L12 12 L9 8 Z" fill="currentColor"/>
+              </svg>
             </div>
             <div className="hidden sm:block">
-              <span className="font-bold text-foreground text-lg">SKYWORTH</span>
-              <span className="text-primary text-xs block -mt-1">MUNDIAL 2026</span>
+              <span className="font-display text-foreground text-xl tracking-wide">SKYWORTH</span>
+              <span className="text-green-cta text-xs font-display block -mt-1 tracking-wider">EL SUEÑO DEL HINCHA</span>
             </div>
           </Link>
 
@@ -58,7 +60,7 @@ const Header = () => {
                 to={link.href}
                 className={`text-sm font-medium transition-colors ${
                   isActive(link.href)
-                    ? "text-primary"
+                    ? "text-green-cta"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -69,24 +71,22 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Mostrar botón de vendedor: no autenticado O es seller (admin sin rol seller NO ve este botón) */}
             {(!user || isSeller) && (
               <Link to={getSellerLink()} className="hidden sm:block">
-                <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                <Button variant="outline" size="sm" className="border-green-cta text-green-cta hover:bg-green-cta hover:text-white font-display tracking-wide">
                   <Store className="w-4 h-4 mr-2" />
                   {getSellerLabel()}
                 </Button>
               </Link>
             )}
             
-            {/* Admin badge y link - solo para admins */}
             {isAdmin && (
               <Link to="/admin" className="hidden sm:flex items-center gap-2">
-                <Badge variant="outline" className="border-amber-500/50 text-amber-500 bg-amber-500/10">
+                <Badge variant="outline" className="border-orange-hit/50 text-orange-hit bg-orange-hit/10 font-display">
                   <Shield className="w-3 h-3 mr-1" />
                   Admin
                 </Badge>
-                <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10">
+                <Button variant="ghost" size="sm" className="text-orange-hit hover:text-orange-hit hover:bg-orange-hit/10">
                   <LayoutDashboard className="w-4 h-4" />
                 </Button>
               </Link>
@@ -123,7 +123,7 @@ const Header = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border bg-background"
+            className="md:hidden border-t border-border bg-pitch-900"
           >
             <nav className="p-4 space-y-2">
               {navLinks.map((link) => (
@@ -133,7 +133,7 @@ const Header = () => {
                   onClick={() => setIsMenuOpen(false)}
                   className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive(link.href)
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-green-cta/10 text-green-cta"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
@@ -141,24 +141,22 @@ const Header = () => {
                 </Link>
               ))}
               <div className="pt-2 border-t border-border mt-2 space-y-2">
-                {/* Portal vendedor - solo si no autenticado o si es seller */}
                 {(!user || isSeller) && (
                   <Link
                     to={getSellerLink()}
                     onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-primary"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-green-cta"
                   >
                     <Store className="w-4 h-4" />
                     {getSellerLabel()}
                   </Link>
                 )}
                 
-                {/* Panel Admin - solo para admins */}
                 {isAdmin && (
                   <Link
                     to="/admin"
                     onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-amber-500 bg-amber-500/10"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-orange-hit bg-orange-hit/10"
                   >
                     <Shield className="w-4 h-4" />
                     Panel Administrador
