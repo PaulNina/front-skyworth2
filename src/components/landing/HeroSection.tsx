@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import PromoPrizeCard from "@/components/ui/PromoPrizeCard";
 import { useCampaign } from "@/hooks/useCampaign";
@@ -7,10 +6,13 @@ import { useCampaign } from "@/hooks/useCampaign";
 const HeroSection = () => {
   const { data: campaign } = useCampaign();
   
-  // Use campaign draw_date from DB, fallback to default
   const sorteoDate = campaign?.draw_date 
     ? new Date(campaign.draw_date) 
     : new Date("2026-07-15T20:00:00");
+
+  const scrollToForm = () => {
+    document.getElementById('registrar-compra')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
@@ -30,7 +32,6 @@ const HeroSection = () => {
             transition={{ duration: 0.6 }}
             className="text-center lg:text-left"
           >
-            {/* Soccer ball icon integrated with title */}
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
@@ -64,12 +65,12 @@ const HeroSection = () => {
               transition={{ delay: 0.4 }}
               className="flex flex-col sm:flex-row gap-4 mt-8 justify-center lg:justify-start"
             >
-              <Link to="/registro-cliente" className="btn-cta-primary inline-flex items-center justify-center gap-2">
+              <button onClick={scrollToForm} className="btn-cta-primary inline-flex items-center justify-center gap-2">
                 REGISTRAR COMPRA
-              </Link>
-              <Link to="/registro-vendedor" className="btn-cta-secondary inline-flex items-center justify-center gap-2">
+              </button>
+              <a href="/vendedores" className="btn-cta-secondary inline-flex items-center justify-center gap-2">
                 SOY VENDEDOR
-              </Link>
+              </a>
             </motion.div>
           </motion.div>
 
@@ -81,11 +82,13 @@ const HeroSection = () => {
             className="text-center lg:text-right"
           >
             <p className="font-display text-3xl md:text-4xl lg:text-5xl text-white leading-tight tracking-wide">
-              ¡UNA PROMO PARA
+              ¡VIVE EL
               <br />
-              <span className="text-green-cta">HINCHAS</span> QUE NO
+              <span className="text-green-cta">REPECHAJE</span> DE
               <br />
-              DEJAN DE <span className="text-orange-hit">CREER!</span>
+              LA VERDE RUMBO A
+              <br />
+              <span className="text-orange-hit">MÉXICO 2026!</span>
             </p>
           </motion.div>
         </div>
