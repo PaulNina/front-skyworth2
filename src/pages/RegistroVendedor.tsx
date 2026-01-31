@@ -1,15 +1,14 @@
 /**
  * Registro Vendedor - Skyworth Mundial 2026
  * 
- * CRITICAL FIX: Compatible con confirmación de email
- * - Si hay sesión inmediata → continuar registro
- * - Si requiere confirmación → guardar form y mostrar mensaje
+ * Migrated from Supabase to custom backend API
+ * Vendors can self-register through the backend
  */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { API_BASE_URL, API_ENDPOINTS, ApiResponse } from '@/config/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,29 +16,24 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Store, Mail, CheckCircle } from 'lucide-react';
+import { Loader2, UserPlus, Store, CheckCircle, AlertTriangle } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import { validateBolivianPhone } from '@/lib/phoneValidation';
 
 const DEPARTMENTS = [
-  'La Paz', 'Cochabamba', 'Santa Cruz', 'Oruro', 'Potosí', 
-  'Chuquisaca', 'Tarija', 'Beni', 'Pando'
+  'La Paz', 'Cochabamba', 'Santa Cruz'
 ];
 
-const PENDING_REGISTRATION_KEY = 'skyworth_pending_seller_registration';
-
-interface PendingRegistration {
-  fullName: string;
-  email: string;
-  phone: string;
-  storeName: string;
-  storeCity: string;
-  storeDepartment: string;
+interface RegistroVendedorResult {
+  vendedorId?: number;
+  mensaje?: string;
 }
 
 export default function RegistroVendedor() {
   const [formData, setFormData] = useState({
     fullName: '',
+    ci: '',
     email: '',
     phone: '',
     password: '',
@@ -47,97 +41,46 @@ export default function RegistroVendedor() {
     storeName: '',
     storeCity: '',
     storeDepartment: '',
+    birthDate: '',
     termsAccepted: false,
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
-  const [isCompletingRegistration, setIsCompletingRegistration] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   
-  const { signUp, user } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  // CRITICAL: Verificar si hay registro pendiente al cargar con usuario confirmado
-  useEffect(() => {
-    const completePendingRegistration = async () => {
-      if (!user) return;
-      
-      const pendingDataStr = localStorage.getItem(PENDING_REGISTRATION_KEY);
-      if (!pendingDataStr) return;
-      
-      try {
-        const pendingData: PendingRegistration = JSON.parse(pendingDataStr);
-        setIsCompletingRegistration(true);
-        
-        // Verificar si ya tiene perfil de vendedor
-        const { data: existingSeller } = await supabase
-          .from('sellers')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (existingSeller) {
-          // Ya tiene perfil, limpiar y redirigir
-          localStorage.removeItem(PENDING_REGISTRATION_KEY);
-          toast({
-            title: '¡Ya tienes perfil de vendedor!',
-            description: 'Redirigiendo a tu dashboard...',
-          });
-          navigate('/dashboard-vendedor', { replace: true });
-          return;
-        }
-        
-        // Crear profile
-        await supabase
-          .from('profiles')
-          .upsert({
-            user_id: user.id,
-            full_name: pendingData.fullName,
-            email: pendingData.email,
-            phone: pendingData.phone,
-            city: pendingData.storeCity,
-            department: pendingData.storeDepartment,
-          });
-        
-        // Crear seller
-        const { error: sellerError } = await supabase
-          .from('sellers')
-          .insert({
-            user_id: user.id,
-            store_name: pendingData.storeName,
-            store_city: pendingData.storeCity,
-            store_department: pendingData.storeDepartment,
-          });
-        
-        if (sellerError) throw sellerError;
-        
-        // Asignar rol
-        await supabase.rpc('rpc_request_seller_role');
-        
-        // Limpiar y redirigir
-        localStorage.removeItem(PENDING_REGISTRATION_KEY);
-        
-        toast({
-          title: '¡Registro completado!',
-          description: 'Tu perfil de vendedor ha sido creado.',
-        });
-        
-        navigate('/dashboard-vendedor', { replace: true });
-      } catch (error) {
-        console.error('Error completing registration:', error);
-        toast({
-          title: 'Error al completar registro',
-          description: 'Por favor intenta nuevamente.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsCompletingRegistration(false);
-      }
-    };
-    
-    completePendingRegistration();
-  }, [user, navigate]);
-
   const handleChange = (field: string, value: string | boolean) => {
+    // Validar número de teléfono (Bolivia: 8 dígitos, empieza con 6 o 7)
+    if (field === 'phone' && typeof value === 'string') {
+      // Solo permitir números
+      const cleaned = value.replace(/\D/g, '');
+      
+      // Limitar a 8 dígitos
+      if (cleaned.length > 8) {
+        return;
+      }
+      
+      // Actualizar con el valor limpio
+      setFormData(prev => ({ ...prev, [field]: cleaned }));
+      
+      // Validar si tiene contenido
+      if (cleaned.length > 0) {
+        const validation = validateBolivianPhone(cleaned);
+        if (!validation.isValid && cleaned.length === 8) {
+          setPhoneError(validation.error || null);
+        } else if (cleaned.length < 8) {
+          setPhoneError('Debe tener 8 dígitos');
+        } else {
+          setPhoneError(null);
+        }
+      } else {
+        setPhoneError(null);
+      }
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -148,6 +91,26 @@ export default function RegistroVendedor() {
       toast({
         title: 'Error',
         description: 'Las contraseñas no coinciden',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: 'Error',
+        description: 'La contraseña debe tener al menos 6 caracteres',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar teléfono
+    const phoneValidation = validateBolivianPhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      toast({
+        title: 'Error',
+        description: phoneValidation.error || 'El número de teléfono debe ser un celular boliviano de 8 dígitos que empiece con 6 o 7.',
         variant: 'destructive',
       });
       return;
@@ -165,75 +128,49 @@ export default function RegistroVendedor() {
     setIsLoading(true);
 
     try {
-      // 1. Create user account
-      const { error: signUpError, needsEmailConfirmation } = await signUp(formData.email, formData.password, {
-        full_name: formData.fullName,
-        phone: formData.phone,
+      // Register vendor through backend API
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.VENDEDOR.REGISTRAR}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: formData.fullName,
+          ci: formData.ci,
+          email: formData.email,
+          telefono: formData.phone,
+          password: formData.password,
+          tienda: formData.storeName,
+          ciudad: formData.storeCity,
+          departamento: formData.storeDepartment,
+          fechaNacimiento: formData.birthDate,
+        }),
       });
 
-      if (signUpError) throw signUpError;
+      const result: ApiResponse<RegistroVendedorResult> = await response.json();
 
-      // CRITICAL: Si requiere confirmación de email, guardar datos y mostrar mensaje
-      if (needsEmailConfirmation) {
-        const pendingData: PendingRegistration = {
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          storeName: formData.storeName,
-          storeCity: formData.storeCity,
-          storeDepartment: formData.storeDepartment,
-        };
-        localStorage.setItem(PENDING_REGISTRATION_KEY, JSON.stringify(pendingData));
-        setShowEmailConfirmation(true);
-        setIsLoading(false);
-        return;
+      if (result.error || !response.ok) {
+        throw new Error(result.mensaje || 'Error al registrar vendedor');
       }
 
-      // Si no requiere confirmación, continuar con registro normal
-      const { data: { user: newUser } } = await supabase.auth.getUser();
+      // Show success and auto-login
+      setShowSuccess(true);
       
-      if (!newUser) {
-        throw new Error('No se pudo crear el usuario');
-      }
-
-      // 2. Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: newUser.id,
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          city: formData.storeCity,
-          department: formData.storeDepartment,
-        });
-
-      if (profileError) throw profileError;
-
-      // 3. Create seller record
-      const { error: sellerError } = await supabase
-        .from('sellers')
-        .insert({
-          user_id: newUser.id,
-          store_name: formData.storeName,
-          store_city: formData.storeCity,
-          store_department: formData.storeDepartment,
-        });
-
-      if (sellerError) throw sellerError;
-
-      // 4. Assign seller role using secure RPC
-      const { error: roleError } = await supabase
-        .rpc('rpc_request_seller_role');
-
-      if (roleError) throw roleError;
-
       toast({
         title: '¡Registro exitoso!',
         description: 'Tu cuenta de vendedor ha sido creada.',
       });
 
-      navigate('/dashboard-vendedor', { replace: true });
+      // Auto-login after successful registration
+      setTimeout(async () => {
+        const { error: loginError } = await signIn(formData.email, formData.password);
+        if (!loginError) {
+          navigate('/ventas/dashboard', { replace: true });
+        } else {
+          navigate('/ventas', { replace: true });
+        }
+      }, 2000);
+
     } catch (error: unknown) {
       const err = error as Error;
       toast({
@@ -246,68 +183,35 @@ export default function RegistroVendedor() {
     }
   };
 
-  // Estado: Completando registro pendiente
-  if (isCompletingRegistration) {
-    return (
-      <div className="min-h-screen bg-skyworth-dark flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-skyworth-gold mx-auto mb-4" />
-          <p className="text-white">Completando tu registro de vendedor...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Estado: Esperando confirmación de email
-  if (showEmailConfirmation) {
+  // Estado: Registro exitoso
+  if (showSuccess) {
     return (
       <div className="min-h-screen bg-skyworth-dark flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="w-full max-w-md"
           >
             <Card className="bg-white/10 backdrop-blur-sm border-skyworth-green/30">
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4 w-16 h-16 bg-skyworth-green/20 rounded-full flex items-center justify-center">
-                  <Mail className="h-8 w-8 text-skyworth-green" />
+                  <CheckCircle className="h-8 w-8 text-skyworth-green" />
                 </div>
                 <CardTitle className="text-2xl font-bold text-white">
-                  Confirma tu correo
+                  ¡Registro Exitoso!
                 </CardTitle>
                 <CardDescription className="text-gray-300">
-                  Hemos enviado un enlace de confirmación a <strong className="text-white">{formData.email}</strong>
+                  Tu cuenta de vendedor ha sido creada correctamente.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-skyworth-green/10 border border-skyworth-green/30 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-skyworth-green mt-0.5" />
-                    <div className="text-sm text-gray-300">
-                      <p className="font-medium text-white mb-1">Pasos siguientes:</p>
-                      <ol className="list-decimal list-inside space-y-1">
-                        <li>Revisa tu bandeja de entrada</li>
-                        <li>Haz clic en el enlace de confirmación</li>
-                        <li>Serás redirigido automáticamente</li>
-                      </ol>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 text-center">
-                  ¿No recibiste el correo? Revisa tu carpeta de spam o espera unos minutos.
+              <CardContent className="text-center">
+                <p className="text-gray-400">
+                  Redirigiendo a tu dashboard...
                 </p>
+                <Loader2 className="h-6 w-6 animate-spin text-skyworth-gold mx-auto mt-4" />
               </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="outline"
-                  onClick={() => navigate('/login')}
-                  className="w-full border-white/20 text-white hover:bg-white/10"
-                >
-                  Ya confirmé, ir a iniciar sesión
-                </Button>
-              </CardFooter>
             </Card>
           </motion.div>
         </main>
@@ -356,12 +260,11 @@ export default function RegistroVendedor() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-white">Teléfono *</Label>
+                    <Label htmlFor="ci" className="text-white">CI *</Label>
                     <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleChange('phone', e.target.value)}
+                      id="ci"
+                      value={formData.ci}
+                      onChange={(e) => handleChange('ci', e.target.value)}
                       required
                       disabled={isLoading}
                       className="bg-white/10 border-white/20 text-white"
@@ -369,17 +272,54 @@ export default function RegistroVendedor() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-white">Correo electrónico *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleChange('email', e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-white">Teléfono *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleChange('phone', e.target.value)}
+                      placeholder="7XXXXXXX (8 dígitos)"
+                      required
+                      maxLength={8}
+                      disabled={isLoading}
+                      className={`bg-white/10 border-white/20 text-white ${phoneError ? 'border-red-500 focus:ring-red-500' : ''}`}
+                    />
+                    {phoneError && (
+                      <p className="text-sm text-red-400 mt-1 font-medium flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {phoneError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white">Correo electrónico *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
+                    <Label htmlFor="birthDate" className="text-white">Fecha de Nacimiento *</Label>
+                    <Input
+                      id="birthDate"
+                      type="date"
+                      min="1900-01-01"
+                      max={new Date().toISOString().split('T')[0]}
+                      value={formData.birthDate}
+                      onChange={(e) => handleChange('birthDate', e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
                 </div>
 
                 {/* Store Info */}
@@ -489,7 +429,7 @@ export default function RegistroVendedor() {
                 <p className="text-sm text-gray-300 text-center">
                   ¿Ya tienes cuenta?{' '}
                   <Link
-                    to="/login"
+                    to="/ventas"
                     className="text-skyworth-gold hover:underline font-medium"
                   >
                     Inicia sesión aquí

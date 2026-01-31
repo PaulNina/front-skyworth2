@@ -1,61 +1,71 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import apiService from '@/services/apiService';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Package } from 'lucide-react';
-import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+import { Product } from '@/hooks/useProducts';
 
-type Product = Tables<'products'>;
+interface ProductFormData {
+  nombre: string;
+  modelo: string;
+  tamanoPulgadas: string;
+  multiplicadorCupones: string;
+  descripcion: string;
+  activo: boolean;
+}
 
-const TIERS = ['T1', 'T2', 'T3'];
+interface ApiError {
+  response?: {
+    data?: {
+      mensaje?: string;
+    };
+  };
+  message: string;
+}
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    model_name: '',
-    tier: 'T1',
-    screen_size: '',
-    description: '',
-    points_value: '',
-    ticket_multiplier: '1',
-    is_active: true
+  const [formData, setFormData] = useState<ProductFormData>({
+    nombre: '',
+    modelo: '',
+    tamanoPulgadas: '',
+    multiplicadorCupones: '1',
+    descripcion: '',
+    activo: true
   });
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['admin-products'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('tier', { ascending: true })
-        .order('screen_size', { ascending: true });
-      if (error) throw error;
-      return data as Product[];
+      // Fetch all products
+      const response = await apiService.get<Product[]>('/api/admin/productos');
+      return response.data;
     }
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (product: TablesInsert<'products'>) => {
+    mutationFn: async (productData: ProductFormData) => {
+      // Convert string inputs to numbers where necessary
+      const payload = {
+        ...productData,
+        tamanoPulgadas: parseFloat(productData.tamanoPulgadas),
+        multiplicadorCupones: parseInt(productData.multiplicadorCupones)
+      };
+
       if (editingProduct) {
-        const { error } = await supabase
-          .from('products')
-          .update(product)
-          .eq('id', editingProduct.id);
-        if (error) throw error;
+        await apiService.put(`/api/admin/productos/${editingProduct.id}`, payload);
       } else {
-        const { error } = await supabase.from('products').insert(product);
-        if (error) throw error;
+        await apiService.post('/api/admin/productos', payload);
       }
     },
     onSuccess: () => {
@@ -63,22 +73,21 @@ export default function AdminProducts() {
       toast.success(editingProduct ? 'Producto actualizado' : 'Producto creado');
       closeDialog();
     },
-    onError: (error) => {
-      toast.error('Error al guardar: ' + error.message);
+    onError: (error: ApiError) => {
+      toast.error('Error al guardar: ' + (error.response?.data?.mensaje || error.message));
     }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('products').delete().eq('id', id);
-      if (error) throw error;
+    mutationFn: async (id: number) => {
+      await apiService.delete(`/api/admin/productos/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      toast.success('Producto eliminado');
+      toast.success('Producto eliminado (desactivado)');
     },
-    onError: (error) => {
-      toast.error('Error al eliminar: ' + error.message);
+    onError: (error: ApiError) => {
+      toast.error('Error al eliminar: ' + (error.response?.data?.mensaje || error.message));
     }
   });
 
@@ -86,49 +95,31 @@ export default function AdminProducts() {
     setDialogOpen(false);
     setEditingProduct(null);
     setFormData({
-      model_name: '',
-      tier: 'T1',
-      screen_size: '',
-      description: '',
-      points_value: '',
-      ticket_multiplier: '1',
-      is_active: true
+      nombre: '',
+      modelo: '',
+      tamanoPulgadas: '',
+      multiplicadorCupones: '1',
+      descripcion: '',
+      activo: true
     });
   };
 
   const openEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData({
-      model_name: product.model_name,
-      tier: product.tier,
-      screen_size: product.screen_size?.toString() || '',
-      description: product.description || '',
-      points_value: product.points_value?.toString() || '',
-      ticket_multiplier: product.ticket_multiplier?.toString() || '1',
-      is_active: product.is_active ?? true
+      nombre: product.nombre,
+      modelo: product.modelo,
+      tamanoPulgadas: product.tamanoPulgadas.toString(),
+      multiplicadorCupones: product.multiplicadorCupones.toString(),
+      descripcion: product.descripcion || '',
+      activo: product.activo
     });
     setDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveMutation.mutate({
-      model_name: formData.model_name,
-      tier: formData.tier,
-      screen_size: formData.screen_size ? parseFloat(formData.screen_size) : null,
-      description: formData.description || null,
-      points_value: formData.points_value ? parseInt(formData.points_value) : null,
-      ticket_multiplier: formData.ticket_multiplier ? parseInt(formData.ticket_multiplier) : 1,
-      is_active: formData.is_active
-    });
-  };
-
-  const getTierBadgeClass = (tier: string) => {
-    switch (tier) {
-      case 'T3': return 'bg-primary text-primary-foreground';
-      case 'T2': return 'bg-secondary text-secondary-foreground';
-      default: return 'bg-muted text-muted-foreground';
-    }
+    saveMutation.mutate(formData);
   };
 
   return (
@@ -153,86 +144,72 @@ export default function AdminProducts() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="model_name" className="text-foreground">Modelo</Label>
+                <Label htmlFor="nombre" className="text-foreground">Nombre</Label>
                 <Input
-                  id="model_name"
-                  value={formData.model_name}
-                  onChange={(e) => setFormData({ ...formData, model_name: e.target.value })}
-                  placeholder="Ej: SUE8600"
+                  id="nombre"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  placeholder="Ej: Televisor 55 Ultra HD"
                   required
                   className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tier" className="text-foreground">Tier</Label>
-                  <Select value={formData.tier} onValueChange={(v) => setFormData({ ...formData, tier: v })}>
-                    <SelectTrigger className="bg-background border-border text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-muted border-border">
-                      {TIERS.map((tier) => (
-                        <SelectItem key={tier} value={tier} className="text-foreground">{tier}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="modelo" className="text-foreground">Modelo</Label>
+                  <Input
+                    id="modelo"
+                    value={formData.modelo}
+                    onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
+                    placeholder="Ej: SUE8600"
+                    required
+                    className="bg-background border-border text-foreground"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="screen_size" className="text-foreground">Pulgadas</Label>
+                  <Label htmlFor="tamanoPulgadas" className="text-foreground">Pulgadas</Label>
                   <Input
-                    id="screen_size"
+                    id="tamanoPulgadas"
                     type="number"
-                    value={formData.screen_size}
-                    onChange={(e) => setFormData({ ...formData, screen_size: e.target.value })}
+                    value={formData.tamanoPulgadas}
+                    onChange={(e) => setFormData({ ...formData, tamanoPulgadas: e.target.value })}
                     placeholder="55"
+                    required
                     className="bg-background border-border text-foreground"
                   />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="points_value" className="text-foreground">Puntos</Label>
-                  <Input
-                    id="points_value"
-                    type="number"
-                    value={formData.points_value}
-                    onChange={(e) => setFormData({ ...formData, points_value: e.target.value })}
-                    placeholder="100"
-                    className="bg-background border-border text-foreground"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ticket_multiplier" className="text-foreground">Cupones por compra (1-5)</Label>
-                  <Input
-                    id="ticket_multiplier"
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={formData.ticket_multiplier}
-                    onChange={(e) => setFormData({ ...formData, ticket_multiplier: e.target.value })}
-                    placeholder="1"
-                    className="bg-background border-border text-foreground"
-                  />
-                  <p className="text-xs text-muted-foreground">Cantidad de cupones que recibe el comprador</p>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-foreground">Descripción</Label>
+                <Label htmlFor="multiplicadorCupones" className="text-foreground">Cupones por compra</Label>
                 <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  id="multiplicadorCupones"
+                  type="number"
+                  min="1"
+                  value={formData.multiplicadorCupones}
+                  onChange={(e) => setFormData({ ...formData, multiplicadorCupones: e.target.value })}
+                  placeholder="1"
+                  required
+                  className="bg-background border-border text-foreground"
+                />
+                <p className="text-xs text-muted-foreground">Cantidad de cupones que recibe el cliente por esta compra</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="descripcion" className="text-foreground">Descripción</Label>
+                <Input
+                  id="descripcion"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   placeholder="Descripción opcional"
                   className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="flex items-center gap-3">
                 <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                  id="activo"
+                  checked={formData.activo}
+                  onCheckedChange={(checked) => setFormData({ ...formData, activo: checked })}
                 />
-                <Label htmlFor="is_active" className="text-foreground">Activo</Label>
+                <Label htmlFor="activo" className="text-foreground">Activo</Label>
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={closeDialog} className="flex-1">
@@ -252,10 +229,9 @@ export default function AdminProducts() {
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Nombre</TableHead>
                 <TableHead className="text-muted-foreground">Modelo</TableHead>
-                <TableHead className="text-muted-foreground">Tier</TableHead>
                 <TableHead className="text-muted-foreground">Pulgadas</TableHead>
-                <TableHead className="text-muted-foreground">Puntos</TableHead>
                 <TableHead className="text-muted-foreground">Cupones</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
@@ -264,23 +240,20 @@ export default function AdminProducts() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     Cargando productos...
                   </TableCell>
                 </TableRow>
               ) : products && products.length > 0 ? (
                 products.map((product) => (
                   <TableRow key={product.id} className="border-border">
-                    <TableCell className="text-foreground font-medium">{product.model_name}</TableCell>
+                    <TableCell className="text-foreground font-medium">{product.nombre}</TableCell>
+                    <TableCell className="text-foreground">{product.modelo}</TableCell>
+                    <TableCell className="text-foreground">{product.tamanoPulgadas}"</TableCell>
+                    <TableCell className="text-foreground">x{product.multiplicadorCupones}</TableCell>
                     <TableCell>
-                      <Badge className={getTierBadgeClass(product.tier)}>{product.tier}</Badge>
-                    </TableCell>
-                    <TableCell className="text-foreground">{product.screen_size}"</TableCell>
-                    <TableCell className="text-foreground">{product.points_value || '-'}</TableCell>
-                    <TableCell className="text-foreground">x{product.ticket_multiplier || 1}</TableCell>
-                    <TableCell>
-                      <Badge variant={product.is_active ? 'default' : 'secondary'}>
-                        {product.is_active ? 'Activo' : 'Inactivo'}
+                      <Badge variant={product.activo ? 'default' : 'secondary'}>
+                        {product.activo ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -303,7 +276,7 @@ export default function AdminProducts() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No hay productos registrados. Crea el primero.
                   </TableCell>
                 </TableRow>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 
 interface Message {
@@ -57,26 +57,27 @@ const ChatBot = () => {
         content: m.content,
       }));
 
-      const { data, error } = await supabase.functions.invoke("bot-chat", {
-        body: {
-          message: currentInput,
-          history,
+      // Call backend API
+      const response = await fetch(`${API_BASE_URL}/api/chatbot/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          message: currentInput
+        }),
       });
 
-      if (error) {
-        console.error("Chat error:", error);
-        throw new Error(error.message || "Error al conectar con el asistente");
-      }
+      const data = await response.json();
 
-      if (data?.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error(data.message || "Error al conectar con el asistente");
       }
 
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data?.response || "Lo siento, no pude procesar tu pregunta. ¿Podrías reformularla?",
+        content: data.data?.message || "Lo siento, no pude procesar tu pregunta. ¿Podrías reformularla?",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botResponse]);
@@ -85,7 +86,7 @@ const ChatBot = () => {
       const errorMessage = error instanceof Error ? error.message : "Error desconocido";
       
       // Show toast for rate limit or payment errors
-      if (errorMessage.includes("Demasiadas") || errorMessage.includes("429")) {
+      if (errorMessage.includes("429")) {
         toast.error("Por favor espera un momento antes de enviar más mensajes.");
       } else if (errorMessage.includes("402") || errorMessage.includes("no disponible")) {
         toast.error("El asistente está temporalmente no disponible.");

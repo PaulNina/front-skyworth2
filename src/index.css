@@ -111,8 +111,8 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Bebas Neue', 'Inter', sans-serif;
-    @apply font-bold tracking-wide;
+    font-family: 'Inter', sans-serif;
+    @apply font-normal tracking-tight;
   }
 }
 
@@ -400,4 +400,17 @@
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.05); }
   }
+
+  /* Date input calendar icon - make visible on dark backgrounds */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+  }
+  
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1) brightness(1.2);
+  }
+}
+.swal2-container {
+  z-index: 99999 !important;
 }

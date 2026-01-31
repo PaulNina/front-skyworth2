@@ -34,7 +34,7 @@ function isValidRedirect(path: string): boolean {
 // Obtener fallback según rol
 function getFallbackRoute(isAdmin: boolean, isSeller: boolean): string {
   if (isAdmin) return '/admin';
-  if (isSeller) return '/dashboard-vendedor';
+  if (isSeller) return '/vendedores/dashboard';
   return '/';
 }
 

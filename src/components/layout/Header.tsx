@@ -12,19 +12,21 @@ const Header = () => {
   const { user, isSeller, isAdmin, signOut } = useAuth();
 
   const navLinks = [
-    { href: "/", label: "Inicio" },
-    { href: "/registro-cliente", label: "Registrar Compra" },
-    { href: "/rankings", label: "Rankings" },
-    { href: "/resultados", label: "Resultados" },
+    { href: "/", label: "Inicio", showAlways: true },
+    { href: "/registrar-compra", label: "Registrar Compra", showAlways: true },
+    { href: "/ventas/ranking", label: "Rankings", restricted: true },
+    { href: "/resultados", label: "Resultados", restricted: true },
   ];
+
+  const visibleLinks = navLinks.filter(link => link.showAlways || (user && link.restricted));
 
   const isActive = (path: string) => location.pathname === path;
 
   const getSellerLink = () => {
     if (user && isSeller) {
-      return "/dashboard-vendedor";
+      return "/ventas/dashboard";
     }
-    return "/login?redirect=dashboard-vendedor&role=seller";
+    return "/ventas";
   };
 
   const getSellerLabel = () => {
@@ -35,26 +37,21 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 glass-effect">
+    <header className="fixed top-0 left-0 right-0 z-[100] glass-effect">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-green flex items-center justify-center shadow-glow-green">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
-                <path d="M12 2 L15 8 L12 12 L9 8 Z" fill="currentColor"/>
-              </svg>
-            </div>
+            {/* <img src="/logo.png" alt="Skyworth" className="w-10 h-10 object-contain" /> */}
             <div className="hidden sm:block">
-              <span className="font-display text-foreground text-xl tracking-wide">SKYWORTH</span>
-              <span className="text-green-cta text-xs font-display block -mt-1 tracking-wider">EL SUEÑO DEL HINCHA</span>
+              <span className="font-bold text-foreground text-xl tracking-tight">SKYWORTH</span>
+              <span className="text-green-cta text-xs font-medium block -mt-1 tracking-normal">EL SUEÑO DEL HINCHA</span>
             </div>
           </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
+            {visibleLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
@@ -71,9 +68,9 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {(!user || isSeller) && (
+            {(user && isSeller) && (
               <Link to={getSellerLink()} className="hidden sm:block">
-                <Button variant="outline" size="sm" className="border-green-cta text-green-cta hover:bg-green-cta hover:text-white font-display tracking-wide">
+                <Button variant="outline" size="sm" className="border-green-cta text-green-cta hover:bg-green-cta hover:text-white font-medium tracking-normal">
                   <Store className="w-4 h-4 mr-2" />
                   {getSellerLabel()}
                 </Button>
@@ -82,7 +79,7 @@ const Header = () => {
             
             {isAdmin && (
               <Link to="/admin" className="hidden sm:flex items-center gap-2">
-                <Badge variant="outline" className="border-orange-hit/50 text-orange-hit bg-orange-hit/10 font-display">
+                <Badge variant="outline" className="border-orange-hit/50 text-orange-hit bg-orange-hit/10 font-medium">
                   <Shield className="w-3 h-3 mr-1" />
                   Admin
                 </Badge>
@@ -126,7 +123,7 @@ const Header = () => {
             className="md:hidden border-t border-border bg-pitch-900"
           >
             <nav className="p-4 space-y-2">
-              {navLinks.map((link) => (
+              {visibleLinks.map((link) => (
                 <Link
                   key={link.href}
                   to={link.href}
@@ -141,7 +138,7 @@ const Header = () => {
                 </Link>
               ))}
               <div className="pt-2 border-t border-border mt-2 space-y-2">
-                {(!user || isSeller) && (
+                {(user && isSeller) && (
                   <Link
                     to={getSellerLink()}
                     onClick={() => setIsMenuOpen(false)}

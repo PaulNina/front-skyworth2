@@ -68,9 +68,7 @@ const HeroSection = () => {
               <button onClick={scrollToForm} className="btn-cta-primary inline-flex items-center justify-center gap-2">
                 REGISTRAR COMPRA
               </button>
-              <a href="/vendedores" className="btn-cta-secondary inline-flex items-center justify-center gap-2">
-                SOY VENDEDOR
-              </a>
+
             </motion.div>
           </motion.div>
 

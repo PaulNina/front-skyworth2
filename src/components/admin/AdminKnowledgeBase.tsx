@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
+import { API_ENDPOINTS, KnowledgeBaseItem } from '@/config/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,65 +14,45 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Bot, Plus, Pencil, Trash2, Search, MessageCircle, Loader2 } from 'lucide-react';
-import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
-type KbItem = Tables<'kb_items'>;
-
-const ITEM_TYPES = ['FAQ', 'ARTICLE', 'DOCUMENT'];
-const CATEGORIES = ['General', 'Promoción', 'Productos', 'Registro', 'Sorteo', 'Problemas', 'Premios'];
+const CATEGORIES = ['PRODUCTO', 'SORTEO', 'REGISTRO', 'GENERAL'];
 
 export default function AdminKnowledgeBase() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<KbItem | null>(null);
+  const [editingItem, setEditingItem] = useState<KnowledgeBaseItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [testQuery, setTestQuery] = useState('');
-  const [testResults, setTestResults] = useState<any[] | null>(null);
+  const [testResults, setTestResults] = useState<KnowledgeBaseItem[] | null>(null);
   const [testing, setTesting] = useState(false);
   const [formData, setFormData] = useState({
-    item_type: 'FAQ',
-    title: '',
-    content: '',
-    category: 'General',
-    tags: '',
-    is_active: true
+    pregunta: '',
+    respuesta: '',
+    categoria: 'GENERAL',
+    keywords: '',
+    activo: true
   });
 
   const { data: items, isLoading } = useQuery({
-    queryKey: ['admin-kb-items', searchTerm, filterCategory],
+    queryKey: ['admin-kb-items'],
     queryFn: async () => {
-      let query = supabase
-        .from('kb_items')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (filterCategory !== 'all') {
-        query = query.eq('category', filterCategory);
-      }
-
-      if (searchTerm) {
-        query = query.or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
-      }
-
-      const { data, error } = await query.limit(100);
-      if (error) throw error;
-      return data as KbItem[];
+      const response = await apiService.get<KnowledgeBaseItem[]>(API_ENDPOINTS.ADMIN.KB.LIST);
+      if (response.error) throw new Error(response.mensaje);
+      return response.data;
     }
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (item: TablesInsert<'kb_items'>) => {
+    mutationFn: async (item: Partial<KnowledgeBaseItem>) => {
+      let res;
       if (editingItem) {
-        const { error } = await supabase
-          .from('kb_items')
-          .update(item)
-          .eq('id', editingItem.id);
-        if (error) throw error;
+        res = await apiService.put(API_ENDPOINTS.ADMIN.KB.UPDATE(editingItem.id), item);
       } else {
-        const { error } = await supabase.from('kb_items').insert(item);
-        if (error) throw error;
+        res = await apiService.post(API_ENDPOINTS.ADMIN.KB.CREATE, item);
       }
+      if (res.error) throw new Error(res.mensaje);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-kb-items'] });
@@ -84,9 +65,10 @@ export default function AdminKnowledgeBase() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('kb_items').delete().eq('id', id);
-      if (error) throw error;
+    mutationFn: async (id: number) => {
+      const res = await apiService.delete(API_ENDPOINTS.ADMIN.KB.DELETE(id));
+      if (res.error) throw new Error(res.mensaje);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-kb-items'] });
@@ -101,24 +83,22 @@ export default function AdminKnowledgeBase() {
     setDialogOpen(false);
     setEditingItem(null);
     setFormData({
-      item_type: 'FAQ',
-      title: '',
-      content: '',
-      category: 'General',
-      tags: '',
-      is_active: true
+      pregunta: '',
+      respuesta: '',
+      categoria: 'GENERAL',
+      keywords: '',
+      activo: true
     });
   };
 
-  const openEdit = (item: KbItem) => {
+  const openEdit = (item: KnowledgeBaseItem) => {
     setEditingItem(item);
     setFormData({
-      item_type: item.item_type,
-      title: item.title,
-      content: item.content,
-      category: item.category || 'General',
-      tags: item.tags?.join(', ') || '',
-      is_active: item.is_active ?? true
+      pregunta: item.pregunta,
+      respuesta: item.respuesta,
+      categoria: item.categoria || 'GENERAL',
+      keywords: item.keywords || '',
+      activo: item.activo
     });
     setDialogOpen(true);
   };
@@ -126,12 +106,11 @@ export default function AdminKnowledgeBase() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     saveMutation.mutate({
-      item_type: formData.item_type,
-      title: formData.title,
-      content: formData.content,
-      category: formData.category,
-      tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : null,
-      is_active: formData.is_active
+      pregunta: formData.pregunta,
+      respuesta: formData.respuesta,
+      categoria: formData.categoria,
+      keywords: formData.keywords,
+      activo: formData.activo
     });
   };
 
@@ -139,27 +118,25 @@ export default function AdminKnowledgeBase() {
     if (!testQuery.trim()) return;
     setTesting(true);
     try {
-      const { data, error } = await supabase.rpc('rpc_kb_search', {
-        query_text: testQuery,
-        max_results: 5
-      });
-      if (error) throw error;
-      setTestResults(data || []);
-    } catch (err: any) {
-      toast.error('Error en búsqueda: ' + err.message);
+      const res = await apiService.post<KnowledgeBaseItem[]>(API_ENDPOINTS.ADMIN.KB.SEARCH, { query_text: testQuery });
+        if (res.error) throw new Error(res.mensaje);
+        setTestResults(res.data || []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error desconocido';
+      toast.error('Error en búsqueda: ' + message);
     } finally {
       setTesting(false);
     }
   };
 
-  const getTypeBadgeClass = (type: string) => {
-    switch (type) {
-      case 'FAQ': return 'bg-blue-500 text-white';
-      case 'ARTICLE': return 'bg-purple-500 text-white';
-      case 'DOCUMENT': return 'bg-green-500 text-white';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
+  const filteredItems = items?.filter(item => {
+      if (filterCategory !== 'all' && item.categoria !== filterCategory) return false;
+      if (searchTerm) {
+          const lower = searchTerm.toLowerCase();
+          return item.pregunta.toLowerCase().includes(lower) || item.respuesta.toLowerCase().includes(lower);
+      }
+      return true;
+  }) || [];
 
   return (
     <div className="space-y-6">
@@ -182,23 +159,9 @@ export default function AdminKnowledgeBase() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-foreground">Tipo</Label>
-                  <Select value={formData.item_type} onValueChange={(v) => setFormData({ ...formData, item_type: v })}>
-                    <SelectTrigger className="bg-background border-border text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-muted border-border">
-                      {ITEM_TYPES.map((type) => (
-                        <SelectItem key={type} value={type} className="text-foreground">{type}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
+               <div className="space-y-2">
                   <Label className="text-foreground">Categoría</Label>
-                  <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                  <Select value={formData.categoria} onValueChange={(v) => setFormData({ ...formData, categoria: v })}>
                     <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue />
                     </SelectTrigger>
@@ -209,41 +172,40 @@ export default function AdminKnowledgeBase() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
               <div className="space-y-2">
-                <Label className="text-foreground">Título / Pregunta</Label>
+                <Label className="text-foreground">Pregunta / Título</Label>
                 <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={formData.pregunta}
+                  onChange={(e) => setFormData({ ...formData, pregunta: e.target.value })}
                   placeholder="¿Cómo puedo participar?"
                   required
                   className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-foreground">Contenido / Respuesta</Label>
+                <Label className="text-foreground">Respuesta / Contenido</Label>
                 <Textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  placeholder="Para participar debes comprar un TV Skyworth participante..."
+                  value={formData.respuesta}
+                  onChange={(e) => setFormData({ ...formData, respuesta: e.target.value })}
+                  placeholder="Para participar debes comprar un TV Skyworth..."
                   required
                   rows={6}
                   className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-foreground">Tags (separados por coma)</Label>
+                <Label className="text-foreground">Keywords (separados por coma)</Label>
                 <Input
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  value={formData.keywords}
+                  onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
                   placeholder="promoción, registro, sorteo"
                   className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="flex items-center gap-3">
                 <Switch
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                  checked={formData.activo}
+                  onCheckedChange={(checked) => setFormData({ ...formData, activo: checked })}
                 />
                 <Label className="text-foreground">Activo</Label>
               </div>
@@ -289,11 +251,10 @@ export default function AdminKnowledgeBase() {
                 <div key={result.id} className="p-3 rounded-lg bg-background/50">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline">#{i + 1}</Badge>
-                    <span className="text-foreground font-medium">{result.title}</span>
-                    <Badge variant="secondary" className="text-xs">{result.category}</Badge>
-                    <span className="text-muted-foreground text-xs ml-auto">Score: {result.rank?.toFixed(4)}</span>
+                    <span className="text-foreground font-medium">{result.pregunta}</span>
+                    <Badge variant="secondary" className="text-xs">{result.categoria}</Badge>
                   </div>
-                  <p className="text-muted-foreground text-sm line-clamp-2">{result.content}</p>
+                  <p className="text-muted-foreground text-sm line-clamp-2">{result.respuesta}</p>
                 </div>
               ))}
             </div>
@@ -306,7 +267,7 @@ export default function AdminKnowledgeBase() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por título o contenido..."
+            placeholder="Buscar por pregunta o respuesta..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-background border-border text-foreground"
@@ -331,10 +292,9 @@ export default function AdminKnowledgeBase() {
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Tipo</TableHead>
-                <TableHead className="text-muted-foreground">Título</TableHead>
                 <TableHead className="text-muted-foreground">Categoría</TableHead>
-                <TableHead className="text-muted-foreground">Tags</TableHead>
+                <TableHead className="text-muted-foreground">Pregunta</TableHead>
+                <TableHead className="text-muted-foreground">Keywords</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
                 <TableHead className="text-muted-foreground text-right">Acciones</TableHead>
               </TableRow>
@@ -346,26 +306,21 @@ export default function AdminKnowledgeBase() {
                     Cargando...
                   </TableCell>
                 </TableRow>
-              ) : items && items.length > 0 ? (
-                items.map((item) => (
+              ) : filteredItems.length > 0 ? (
+                filteredItems.map((item) => (
                   <TableRow key={item.id} className="border-border">
                     <TableCell>
-                      <Badge className={getTypeBadgeClass(item.item_type)}>{item.item_type}</Badge>
+                      <Badge variant="secondary">{item.categoria}</Badge>
                     </TableCell>
                     <TableCell className="text-foreground font-medium max-w-xs truncate">
-                      {item.title}
-                    </TableCell>
-                    <TableCell className="text-foreground">{item.category}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags?.slice(0, 3).map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                        ))}
-                      </div>
+                      {item.pregunta}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={item.is_active ? 'default' : 'secondary'}>
-                        {item.is_active ? 'Activo' : 'Inactivo'}
+                      <div className="truncate max-w-[200px] text-xs text-muted-foreground">{item.keywords}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={item.activo ? 'default' : 'secondary'}>
+                        {item.activo ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -376,7 +331,7 @@ export default function AdminKnowledgeBase() {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (confirm('¿Eliminar este item?')) {
+                          if (confirm('¿Eliminar este item permanentemente?')) {
                             deleteMutation.mutate(item.id);
                           }
                         }}

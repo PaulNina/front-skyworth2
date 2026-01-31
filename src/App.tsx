@@ -9,8 +9,14 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 // Lazy load pages
+const Login = lazy(() => import("./pages/Login"));
 const Resultados = lazy(() => import("./pages/Resultados"));
+const Tombola = lazy(() => import("./pages/Tombola"));
 const Admin = lazy(() => import("./pages/Admin"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const RegistroCliente = lazy(() => import("./pages/RegistroCliente"));
+const RegistroExitoso = lazy(() => import("./pages/RegistroExitoso"));
+import { VentasRoute } from "@/components/auth/VentasRoute";
 
 // Vendedores section
 const VendedoresIndex = lazy(() => import("./pages/vendedores/VendedoresIndex"));
@@ -38,31 +44,49 @@ const App = () => (
             {/* Landing cliente (one-page con formulario embebido) */}
             <Route path="/" element={<Index />} />
             
+            {/* Registro de Cliente (Página dedicada) */}
+            <Route path="/registrar-compra" element={<RegistroCliente />} />
+            <Route path="/registro-exitoso" element={<RegistroExitoso />} />
+            
             {/* Resultados públicos */}
             <Route path="/resultados" element={<Resultados />} />
 
-            {/* Legacy redirects - compatibilidad */}
-            <Route path="/registro-cliente" element={<Navigate to="/#registrar-compra" replace />} />
-            <Route path="/login" element={<Navigate to="/vendedores/login" replace />} />
-            <Route path="/registro-vendedor" element={<Navigate to="/vendedores/registro" replace />} />
-            <Route path="/dashboard-vendedor" element={<Navigate to="/vendedores/dashboard" replace />} />
-            <Route path="/rankings" element={<Navigate to="/vendedores/ranking" replace />} />
-
-            {/* Vendedores section */}
-            <Route path="/vendedores" element={<VendedoresIndex />} />
-            <Route path="/vendedores/login" element={<VendedoresLogin />} />
-            <Route path="/vendedores/registro" element={<VendedoresRegistro />} />
+            {/* Tómbola del sorteo (solo admin) */}
             <Route 
-              path="/vendedores/dashboard" 
+              path="/tombola" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Tombola />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Login General / Admin */}
+            <Route path="/login" element={<Login />} />
+
+            {/* Legacy redirects - compatibilidad */}
+            <Route path="/registro-cliente" element={<Navigate to="/registrar-compra" replace />} />
+            <Route path="/registro-vendedor" element={<Navigate to="/ventas/registro" replace />} />
+            <Route path="/dashboard-vendedor" element={<Navigate to="/ventas/dashboard" replace />} />
+            <Route path="/rankings" element={<Navigate to="/ventas/ranking" replace />} />
+            <Route path="/vendedores/*" element={<Navigate to="/ventas" replace />} />
+
+            {/* Ventas section (antes Vendedores) */}
+            <Route path="/ventas" element={<VendedoresLogin />} />
+            <Route path="/ventas/login" element={<Navigate to="/ventas" replace />} />
+            <Route path="/ventas/registro" element={<VendedoresRegistro />} />
+            <Route 
+              path="/ventas/dashboard" 
               element={
                 <ProtectedRoute requiredRole="seller">
                   <VendedoresDashboard />
                 </ProtectedRoute>
               } 
             />
-            <Route path="/vendedores/ranking" element={<VendedoresRanking />} />
+            <Route path="/ventas/ranking" element={<VendedoresRanking />} />
 
             {/* Admin */}
+            <Route path="/admin" element={<AdminLogin />} />
             <Route
               path="/admin/*"
               element={

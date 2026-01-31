@@ -1,11 +1,12 @@
 /**
- * VendedoresLogin - Login específico para vendedores
- * Ruta: /vendedores/login
+ * AdminLogin - Login específico para administradores
+ * Ruta: /admin
  * 
- * Redirige al dashboard vendedor tras login exitoso
+ * Si no está logueado -> Muestra Login
+ * Si está logueado y es Admin -> Redirige a /admin/dashboard
  */
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -13,12 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, LogIn, Store, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, LogIn, Shield, AlertTriangle, RefreshCw } from 'lucide-react';
 import PitchBackground from '@/components/ui/PitchBackground';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
-export default function VendedoresLogin() {
+export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +27,7 @@ export default function VendedoresLogin() {
   const [denied, setDenied] = useState(false);
   const [permissionTimeout, setPermissionTimeout] = useState(false);
   
-  const { signIn, signOut, user, isSeller, loading, rolesLoaded, rolesError, refreshRoles } = useAuth();
+  const { signIn, signOut, user, isAdmin, loading, rolesLoaded, rolesError, refreshRoles } = useAuth();
   const navigate = useNavigate();
 
   // Redirect logic
@@ -40,15 +41,15 @@ export default function VendedoresLogin() {
 
     setPermissionTimeout(false);
 
-    if (!isSeller) {
+    if (!isAdmin) {
       setDenied(true);
       setIsLoading(false);
       return;
     }
 
     setDenied(false);
-    navigate('/ventas/dashboard', { replace: true });
-  }, [user, isSeller, loading, rolesLoaded, rolesError, navigate]);
+    navigate('/admin/dashboard', { replace: true });
+  }, [user, isAdmin, loading, rolesLoaded, rolesError, navigate]);
 
   // Timeout handling
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function VendedoresLogin() {
 
     toast({
       title: '¡Bienvenido!',
-      description: 'Verificando permisos...',
+      description: 'Verificando permisos de administrador...',
     });
   };
 
@@ -118,20 +119,17 @@ export default function VendedoresLogin() {
       <PitchBackground>
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
-          <Card className="glass-panel border-orange-hit/30 max-w-md w-full bg-black/50">
+          <Card className="glass-panel border-amber-500/30 max-w-md w-full bg-black/50">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-16 h-16 bg-orange-hit/20 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-8 w-8 text-orange-hit" />
+              <div className="mx-auto mb-4 w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-amber-500" />
               </div>
               <CardTitle className="text-xl text-white font-display">ACCESO DENEGADO</CardTitle>
               <CardDescription className="text-white/60">
-                Tu cuenta no tiene rol de vendedor.
+                Tu cuenta no tiene permisos de administrador.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              <Button onClick={() => navigate('/ventas/registro')} className="w-full btn-cta-primary">
-                Registrarme como Vendedor
-              </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate('/', { replace: true })}
@@ -143,7 +141,7 @@ export default function VendedoresLogin() {
                 variant="ghost"
                 onClick={async () => {
                   await signOut();
-                  navigate('/ventas', { replace: true });
+                  navigate('/admin', { replace: true });
                 }}
                 className="w-full text-white/50 hover:text-white hover:bg-white/10"
               >
@@ -202,7 +200,7 @@ export default function VendedoresLogin() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-green-cta mx-auto mb-4" />
+            <Loader2 className="h-8 w-8 animate-spin text-amber-500 mx-auto mb-4" />
             <p className="text-white/60">Verificando permisos...</p>
           </div>
         </main>
@@ -220,16 +218,16 @@ export default function VendedoresLogin() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md"
         >
-          <Card className="glass-panel border-green-cta/20 bg-transparent text-white">
+          <Card className="glass-panel border-amber-500/20 bg-transparent text-white">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-green-cta to-green-cta/70 rounded-full flex items-center justify-center">
-                <Store className="h-8 w-8 text-white" />
+              <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center">
+                <Shield className="h-8 w-8 text-white" />
               </div>
               <CardTitle className="text-2xl font-display text-white">
-                PORTAL VENDEDOR
+                ADMINISTRADOR
               </CardTitle>
               <CardDescription className="text-white/60">
-                Ingresa para acceder a tu panel
+                Acceso restringido al panel de control
               </CardDescription>
             </CardHeader>
 
@@ -242,7 +240,7 @@ export default function VendedoresLogin() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="tu@email.com"
+                    placeholder="admin@skyworth.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -272,7 +270,7 @@ export default function VendedoresLogin() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full btn-cta-primary text-lg py-6 font-display"
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-black text-lg py-6 font-display"
                 >
                   {isLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -283,16 +281,6 @@ export default function VendedoresLogin() {
                     </>
                   )}
                 </Button>
-
-                <p className="text-sm text-white/60 text-center">
-                  ¿No tienes cuenta?{' '}
-                  <Link
-                    to="/ventas/registro"
-                    className="text-green-cta hover:underline font-medium"
-                  >
-                    Regístrate aquí
-                  </Link>
-                </p>
               </CardFooter>
             </form>
           </Card>
