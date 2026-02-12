@@ -144,7 +144,12 @@ export default function AdminDraw() {
               <p className="text-muted-foreground text-sm">Fecha Programada del Sorteo</p>
               <p className="text-2xl font-bold text-foreground">
                 {drawDate 
-                  ? format(new Date(drawDate), 'd MMM yyyy', { locale: es })
+                  ? (() => {
+                      // Fix: Parse YYYY-MM-DD as local time to avoid timezone shifts (e.g. 8 Mar instead of 9 Mar)
+                      const [year, month, day] = drawDate.split('-').map(Number);
+                      const localDate = new Date(year, month - 1, day);
+                      return format(localDate, 'd MMM yyyy', { locale: es });
+                    })()
                   : 'No definida'}
               </p>
             </div>

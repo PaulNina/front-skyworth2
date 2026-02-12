@@ -58,11 +58,11 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-sm text-white/60">
                 <Mail className="w-4 h-4 text-green-cta" />
-                soporte@skyworth.com
+                servicioskyworth@geq.com.bo
               </li>
               <li className="flex items-center gap-2 text-sm text-white/60">
                 <Phone className="w-4 h-4 text-green-cta" />
-                800 10 2026
+                +591 78048888
               </li>
               <li className="flex items-center gap-2 text-sm text-white/60">
                 <MapPin className="w-4 h-4 text-green-cta" />

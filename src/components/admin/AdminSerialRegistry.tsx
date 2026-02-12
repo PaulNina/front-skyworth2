@@ -276,13 +276,46 @@ export default function AdminSerialRegistry() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    // CSV Header matching backend expectation: numero_serie, modelo, inches, container, seal, hoja_registro, invoice, date_invoice
+    const headers = ['numero_serie', 'modelo', 'pulgadas', 'container', 'seal', 'hoja_registro', 'invoice', 'date_invoice'];
+    const sampleRow = ['2560345M00000', 'G6600H', '60', 'CONT-001', 'SEAL-99', 'HR-2024-001', 'INV-555', '2024-01-01'];
+    
+    const csvContent = [
+        headers.join(','),
+        sampleRow.join(',')
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'plantilla_seriales.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const [isExporting, setIsExporting] = useState(false);
+
   const handleDownloadExcel = async () => {
-    const success = await apiService.downloadBlob(
-      API_ENDPOINTS.ADMIN.SERIALES_EXPORTAR_EXCEL,
-      `seriales_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
-    );
-    if (!success) {
-      toast.error('Error al descargar el archivo');
+    setIsExporting(true);
+    toast.info('Generando reporte... Esto puede tomar un momento.');
+    
+    try {
+        const success = await apiService.downloadBlob(
+          API_ENDPOINTS.ADMIN.SERIALES_EXPORTAR_EXCEL,
+          `seriales_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
+        );
+        if (success) {
+            toast.success('Archivo descargado correctamente');
+        } else {
+            toast.error('Error al descargar el archivo');
+        }
+    } catch (error) {
+        toast.error('Error al descargar el archivo');
+    } finally {
+        setIsExporting(false);
     }
   };
 
@@ -300,9 +333,13 @@ export default function AdminSerialRegistry() {
           Registro de Seriales
         </h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDownloadExcel}>
-            <Download className="h-4 w-4 mr-2" />
-            Descargar datos
+          <Button variant="outline" onClick={handleDownloadExcel} disabled={isExporting}>
+            {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            {isExporting ? 'Generando...' : 'Descargar datos'}
+          </Button>
+          <Button variant="outline" onClick={handleDownloadTemplate}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Descargar Plantilla
           </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
@@ -460,13 +497,13 @@ export default function AdminSerialRegistry() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="max-h-60 overflow-auto rounded border border-border p-4 font-mono text-sm bg-black/50">
+            <div className="max-h-60 overflow-auto rounded border border-border p-4 font-mono text-sm bg-black/50 text-white">
                {importPreview.map((line, i) => (
                    <div key={i} className="whitespace-pre-wrap">{line.raw}</div>
                ))}
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => {setImportPreview(null); if(fileInputRef.current) fileInputRef.current.value = '';}} className="flex-1">
+              <Button type="button" variant="outline" onClick={() => {setImportPreview(null); if(fileInputRef.current) fileInputRef.current.value = '';}} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
                 Cancelar
               </Button>
               <Button 

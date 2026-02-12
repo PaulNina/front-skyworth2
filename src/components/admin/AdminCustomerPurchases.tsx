@@ -40,6 +40,8 @@ interface Purchase {
   nombreVendedor: string;
   
   // New fields
+  fechaCompra?: string;
+  lugarEmision?: string;
   estado: string;
   fechaAprobacion?: string;
   tagPolizaPath?: string;
@@ -63,6 +65,7 @@ interface PurchaseUpdateData {
     ci: string;
     email: string;
     telefono: string;
+    fechaCompra?: string;
     serialIngresado: string;
 }
 
@@ -204,6 +207,7 @@ export default function AdminCustomerPurchases() {
           ci: purchase.ci,
           email: purchase.email,
           telefono: purchase.telefono,
+          fechaCompra: purchase.fechaCompra || '',
           serialIngresado: purchase.serialTv 
       });
       setSelectedPurchase(purchase);
@@ -271,7 +275,7 @@ export default function AdminCustomerPurchases() {
       Object.values(imageBlobUrls).forEach(url => URL.revokeObjectURL(url));
       setImageBlobUrls({});
     }
-  }, [selectedPurchase, isEditOpen]);
+  }, [selectedPurchase, isEditOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -339,6 +343,8 @@ export default function AdminCustomerPurchases() {
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground">Fecha</TableHead>
                 <TableHead className="text-muted-foreground">Cliente</TableHead>
+                <TableHead className="text-muted-foreground">Departamento</TableHead>
+                <TableHead className="text-muted-foreground">Fecha Compra</TableHead>
                 <TableHead className="text-muted-foreground">Producto</TableHead>
                 <TableHead className="text-muted-foreground">Serial</TableHead>
                 <TableHead className="text-muted-foreground">Cupones</TableHead>
@@ -349,7 +355,7 @@ export default function AdminCustomerPurchases() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Cargando...
                   </TableCell>
                 </TableRow>
@@ -364,6 +370,12 @@ export default function AdminCustomerPurchases() {
                         <p className="font-medium">{purchase.nombreCliente}</p>
                         <p className="text-muted-foreground text-xs">{purchase.ci}</p>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-foreground">
+                      {purchase.lugarEmision || '-'}
+                    </TableCell>
+                    <TableCell className="text-foreground">
+                       {purchase.fechaCompra ? format(new Date(purchase.fechaCompra + 'T00:00:00'), 'dd/MM/yyyy') : '-'}
                     </TableCell>
                     <TableCell className="text-foreground">
                        {purchase.modeloTv} ({purchase.tamanoTv}")
@@ -392,7 +404,7 @@ export default function AdminCustomerPurchases() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     No hay registros encontrados.
                   </TableCell>
                 </TableRow>
@@ -626,6 +638,15 @@ export default function AdminCustomerPurchases() {
                     <Input 
                         value={editFormData.telefono}
                         onChange={e => setEditFormData({...editFormData, telefono: e.target.value})}
+                        className="bg-background border-border"
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label>Fecha de Compra</Label>
+                    <Input 
+                        type="date"
+                        value={editFormData.fechaCompra}
+                        onChange={e => setEditFormData({...editFormData, fechaCompra: e.target.value})}
                         className="bg-background border-border"
                     />
                 </div>
